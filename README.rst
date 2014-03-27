@@ -1,6 +1,6 @@
-=========
+==============================
 vk - vk.com API Python wrapper
-=========
+==============================
 
 This is a vk.com (aka vkontakte.ru, largest Russian social network)
 python API wrapper. The goal is to support all API methods (current and future)
@@ -37,6 +37,7 @@ Make requests::
     >>> profiles = vk_api('getProfiles', uids=1)
     >>> profiles[0]['last_name']
     Дуров
+
 All API methods that can be called from server should be supported.
 
 See https://vk.com/developers.php?id=-1_11226273 for detailed API help.
