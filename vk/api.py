@@ -93,7 +93,16 @@ class APISession(object):
                 url = match_dict['url']
                 response = session.post(url, {})
             else:
-                raise VkAuthorizationError('OAuth2 grant access error')
+                try:
+                    json_data = response.json()
+                except ValueError:  # not json in response
+                    error_message = 'OAuth2 grant access error'
+                else:
+                    error_message = 'VK error: [{0}] {1}'.format(
+                        json_data['error'],
+                        json_data['error_description']
+                    )
+                raise VkAuthorizationError(error_message)
 
         parsed_url = urlparse(response.url)
         token_dict = dict(parse_qsl(parsed_url.fragment))
