@@ -1,5 +1,6 @@
 # coding=utf8
 
+import re
 import time
 import random
 import warnings
@@ -84,6 +85,16 @@ class APISession(object):
             'display': 'mobile',
         }
         response = session.post('https://oauth.vk.com/authorize', oauth_data)
+        if 'login.vk.com/?act=grant_access' in response.content:
+            pattern = r'<form method="post" action="(?P<url>[^"]+)">'
+            match = re.search(pattern, response.content)
+            match_dict = match.groupdict()
+            if 'url' in match_dict:
+                url = match_dict['url']
+                response = session.post(url, {})
+            else:
+                raise VkAuthorizationError('OAuth2 grant access error')
+
         parsed_url = urlparse(response.url)
         token_dict = dict(parse_qsl(parsed_url.fragment))
         if 'access_token' in token_dict:
