@@ -11,7 +11,6 @@ setup(
 
     url='https://github.com/dimka665/vk',
     description='vk.com API python wrapper',
-    long_description=open('README.rst').read(),
 
     packages=find_packages(),
     install_requires='requests',
@@ -26,5 +25,5 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    keywords='vk api vkontakte vk.com vkontakte.ru wrappper',
+    keywords='vk.com api vk vkontakte vkontakte.ru wrappper',
 )

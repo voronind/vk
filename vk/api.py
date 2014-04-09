@@ -5,6 +5,7 @@ import random
 import warnings
 
 from hashlib import md5
+from vk.utils import make_handy
 
 try:
     from urlparse import urlparse, parse_qsl  # Python 2
@@ -110,7 +111,7 @@ class APISession(object):
                 for error in errors:
                     warnings.warn(str(error))
 
-                return data['response']
+                return make_handy(data['response'])
 
         raise VkAPIError(errors[0])
 
@@ -134,7 +135,7 @@ class APISession(object):
             }
             params.update(kwargs)
             params['sig'] = self._signature(params)
-            url = 'http://api.vk.com/api.php'
+            url = 'https://api.vk.com/api.php'
 
         return self.session.post(url, params, timeout=timeout or self._timeout)
 
