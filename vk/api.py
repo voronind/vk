@@ -86,14 +86,13 @@ class APISession(object):
             'display': 'mobile',
         }
         response = session.post('https://oauth.vk.com/authorize', oauth_data)
-        
+
         if u'login.vk.com/?act=grant_access' in response.text:
             pattern = r'<form method="post" action="(?P<url>[^"]+)">'
             match = re.search(pattern, response.content)
             match_dict = match.groupdict()
             if 'url' in match_dict:
-                url = match_dict['url']
-                response = session.post(url, {})
+                response = session.get(match_dict['url'])
             else:
                 try:
                     json_data = response.json()
