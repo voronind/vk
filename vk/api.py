@@ -86,7 +86,8 @@ class APISession(object):
             'display': 'mobile',
         }
         response = session.post('https://oauth.vk.com/authorize', oauth_data)
-        if 'login.vk.com/?act=grant_access' in response.content:
+        
+        if u'login.vk.com/?act=grant_access' in response.text:
             pattern = r'<form method="post" action="(?P<url>[^"]+)">'
             match = re.search(pattern, response.content)
             match_dict = match.groupdict()
