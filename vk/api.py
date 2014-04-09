@@ -37,7 +37,7 @@ def json_iter_parse(response_text):
 
 class APISession(object):
     def __init__(self, app_id, user_email=None, user_password=None, access_token=None, app_secret=None,
-                 scope='friends,photos,audio,video,wall', timeout=1):
+                 scope='friends,photos,audio,video,wall', timeout=1, api_version=5.17):
 
         if (not user_email or not user_password) and not access_token and not app_secret:
             raise ValueError('Arguments user_email and user_password, or token, or app_secret are required')
@@ -50,6 +50,8 @@ class APISession(object):
 
         self.access_token = access_token
         self.scope = scope or ''
+        
+        self.api_version = str(api_version)
 
         self._timeout = timeout
 
@@ -150,7 +152,7 @@ class APISession(object):
                 'api_id': str(self.app_id),
                 'method': method,
                 'format': 'JSON',
-                'v': '5.0',
+                'v': self.api_version,
                 'random': random.randint(0, 2 ** 30),
                 'timestamp': int(time.time()),
             }
