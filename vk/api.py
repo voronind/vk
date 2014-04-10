@@ -32,7 +32,7 @@ def json_iter_parse(response_text):
     idx = 0
     while idx < len(response_text):
         obj, idx = decoder.raw_decode(response_text, idx)
-        yield obj
+        yield obj   
 
 
 class APISession(object):
@@ -135,11 +135,14 @@ class APISession(object):
 
                 # return make_handy(data['response'])
                 return data['response']
-
-        raise VkAPIError(errors[0])
+            
+        if errors[0]['error_code'] == 10: # invalid access_token 
+            self.get_access_token()
+            return self(method, timeout=timeout, **kwargs)
+        else:
+            raise VkAPIError(errors[0])
 
     def _request(self, method, timeout=None, **kwargs):
-
         if self.access_token:
             params = {
                 'access_token': self.access_token,
@@ -160,7 +163,6 @@ class APISession(object):
             params.update(kwargs)
             params['sig'] = self._signature(params)
             url = 'https://api.vk.com/api.php'
-
         return self.session.post(url, params, timeout=timeout or self._timeout)
 
     def _signature(self, params):
