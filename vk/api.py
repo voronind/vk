@@ -133,7 +133,8 @@ class APISession(object):
                 for error in errors:
                     warnings.warn(str(error))
 
-                return make_handy(data['response'])
+                # return make_handy(data['response'])
+                return data['response']
 
         raise VkAPIError(errors[0])
 
