@@ -24,14 +24,15 @@ class VkTestCase(unittest.TestCase):
 
     def setUp(self):
         self.vk_token_api = vk.API(test_props.APP_ID, test_props.USER_EMAIL, test_props.USER_PASSWORD)
-        # self.vk_secret_api = vk.API(test_props.APP_ID, app_secret=test_props.APP_SECRET)
+        self.vk_token_api.api_version = u'5.20'
+        self.vk_secret_api = vk.API(test_props.APP_ID, app_secret=test_props.APP_SECRET)
 
 
-    # def test_get_server_time_via_token(self):
-    #     self._test_get_server_time(self.vk_token_api)
+    def test_get_server_time_via_token(self):
+        self._test_get_server_time(self.vk_token_api)
 
-    # def test_get_server_time_via_secret(self):
-    #     self._test_get_server_time(self.vk_secret_api)
+    def test_get_server_time_via_secret(self):
+        self._test_get_server_time(self.vk_secret_api)
 
     def _test_get_server_time(self, vk_api):
         time_1 = time.time() - 1
@@ -41,12 +42,13 @@ class VkTestCase(unittest.TestCase):
 
 
     def test_get_profiles_via_token(self):
-        profiles = self.vk_token_api.getProfiles(uids=1)
+        profiles = self.vk_token_api.users.get(user_id=1)
+
         print(profiles)
         self.assertEqual(profiles.first.last_name, u'Дуров')
-    #
-    # def test_get_profiles_via_secret(self):
-    #     self.assertRaises(vk.VkAPIError, lambda: self.get_first_profile(self.vk_secret_api))
+
+    def test_get_profiles_via_secret(self):
+        self.assertRaises(vk.VkAPIError, lambda: self.get_first_profile(self.vk_secret_api))
 
     def get_first_profile(self, vk_api):
         profiles = vk_api.getProfiles(uids=1)
