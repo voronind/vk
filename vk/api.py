@@ -91,7 +91,7 @@ class APISession(object):
 
         if u'login.vk.com/?act=grant_access' in response.text:
             pattern = u'<form method="post" action="(?P<url>[^"]+)">'
-            match = re.search(pattern, response.content)
+            match = re.search(pattern, response.content.decode("utf-8"))
             match_dict = match.groupdict()
             if 'url' in match_dict:
                 response = session.get(match_dict['url'])
