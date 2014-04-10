@@ -37,7 +37,7 @@ def json_iter_parse(response_text):
 
 class APISession(object):
     def __init__(self, app_id, user_email=None, user_password=None, access_token=None, app_secret=None,
-                 scope='friends,photos,audio,video,wall', timeout=1, api_version=5.19):
+                 scope='friends,photos,audio,video', timeout=1, api_version='5.20'):
 
         if (not user_email or not user_password) and not access_token and not app_secret:
             raise ValueError('Arguments user_email and user_password, or token, or app_secret are required')
@@ -90,7 +90,7 @@ class APISession(object):
         response = session.post('https://oauth.vk.com/authorize', oauth_data)
 
         if u'login.vk.com/?act=grant_access' in response.text:
-            pattern = r'<form method="post" action="(?P<url>[^"]+)">'
+            pattern = u'<form method="post" action="(?P<url>[^"]+)">'
             match = re.search(pattern, response.content)
             match_dict = match.groupdict()
             if 'url' in match_dict:
@@ -144,7 +144,7 @@ class APISession(object):
                 'access_token': self.access_token,
                 'timestamp': int(time.time()),
                 'v': self.api_version,
-                }
+            }
             params.update(kwargs)
             url = 'https://api.vk.com/method/' + method
         else:
@@ -152,6 +152,7 @@ class APISession(object):
                 'api_id': str(self.app_id),
                 'method': method,
                 'format': 'JSON',
+                'v': self.api_version,
                 'random': random.randint(0, 2 ** 30),
                 'timestamp': int(time.time()),
             }
