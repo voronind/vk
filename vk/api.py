@@ -110,7 +110,10 @@ class APISession(object):
                         json_data['error'],
                         json_data['error_description']
                     )
+                session.close()
                 raise VkAuthorizationError(error_message)
+
+        session.close()
 
         parsed_url = urlparse(response.url)
         token_dict = dict(parse_qsl(parsed_url.fragment))
