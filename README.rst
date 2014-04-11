@@ -1,42 +1,43 @@
-==============================
-vk - vk.com API Python wrapper
-==============================
+================================
+vk.com API Python wrapper
+================================
 
 This is a vk.com (aka vkontakte.ru, largest Russian social network)
 python API wrapper. The goal is to support all API methods (current and future)
 that can be accessed from server.
 
-Installation
-============
+Install
+================
 
-::
+.. code:: bash
 
-    $ pip install vk
+    pip install vk
 
-Usage
-=====
+Get access
+================
 
-::
+.. code:: python
 
-    >>> import vk
+    import vk
+    
+    # Use app id, user email/phone and password for access to API
+    vkapi = vk.API('my_app_id', 'user_login', 'user_password')
+    # or ready access token
+    vkapi = vk.API(access_token='access_token')
+    
+Make requests
+===============
+.. code:: python
 
-Login via 1 of 3 ways::
-
-    >>> vk_api = vk.API('my_app_id', 'user_email', 'user_password')  # or
-    >>> vk_api = vk.API(access_token='access_token')  # or
-    >>> vk_api = vk.API('my_app_id', app_secret='my_app_secret')  # deprecated by vk.com
-
-Make requests::
-
-    >>> vk_api.getServerTime()
+    >>> vkapi.getServerTime()
     1395870238
-    >>> profiles = vk_api.getProfiles(uids=1)
+    >>> profiles = vkapi.user.get(user_id=1)
     >>> profiles[0]['last_name']
-    Дуров
+    'Дуров'
     >>> # alternative syntax
-    >>> profiles = vk_api('getProfiles', uids=1)
+    >>> profiles = vkapi('user.get', user_id=1)
     >>> profiles[0]['last_name']
-    Дуров
+    'Дуров'
 
 All API methods that can be called from server should be supported.
 
