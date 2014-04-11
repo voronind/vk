@@ -1,2 +1,5 @@
-from vk.api import API
-from vk.api import VkError, VkAuthorizationError, VkAPIError
+from vk.api import APISession as API
+from vk.api import VkError, VkAuthorizationError, VkAPIMethodError
+
+
+

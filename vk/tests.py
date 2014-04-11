@@ -12,19 +12,17 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # copy to test_props.py and fill it
 APP_ID = ''  # aka API/Client id
-APP_SECRET = ''  # aka API/Client secret
 
-USER_EMAIL = ''
+USER_LOGIN = ''  # user email or phone number
 USER_PASSWORD = ''
 
-import test_props
+from test_props import APP_ID, USER_LOGIN, USER_PASSWORD
 
 
 class VkTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.vk_token_api = vk.API(test_props.APP_ID, test_props.USER_EMAIL, test_props.USER_PASSWORD)
-        self.vk_secret_api = vk.API(test_props.APP_ID, app_secret=test_props.APP_SECRET)
+        self.vk_token_api = vk.API(APP_ID, USER_LOGIN, USER_PASSWORD)
 
     def test_get_server_time_via_token(self):
         time_1 = time.time() - 1
@@ -32,21 +30,10 @@ class VkTestCase(unittest.TestCase):
         server_time = self.vk_token_api.getServerTime()
         self.assertTrue(time_1 <= server_time <= time_2)
 
-    def test_get_server_time_via_secret(self):
-        time_1 = time.time() - 1
-        time_2 = time_1 + 10
-        server_time = self.vk_secret_api.getServerTime()
-        self.assertTrue(time_1 <= server_time <= time_2)
-
-
     def test_get_profiles_via_token(self):
         profiles = self.vk_token_api.users.get(user_id=1)
         profiles = make_handy(profiles)
         self.assertEqual(profiles.first.last_name, u'Дуров')
-
-    def test_get_profiles_via_secret(self):
-        profiles = self.vk_secret_api.users.get(user_id=1)
-        self.assertEqual(profiles[0]['last_name'], u'Дуров')
 
 
 class HandyContainersTestCase(unittest.TestCase):
