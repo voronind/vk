@@ -43,7 +43,7 @@ class APISession(object):
             raise ValueError('Arguments user_email and user_password, or token, or app_secret are required')
 
         self.app_id = app_id
-        self.api_secret = app_secret
+        self.app_secret = app_secret
 
         self.user_email = user_email
         self.user_password = user_password
@@ -75,10 +75,17 @@ class APISession(object):
             'email': self.user_email,
             'pass': self.user_password,
         }
-        session.post('https://login.vk.com', login_data)
 
-        if 'remixsid' not in session.cookies:
-            raise VkAuthorizationError('Bad password or Captcha or Phone number is needed')
+        response = session.post('https://login.vk.com', login_data)
+
+        if 'remixsid' in session.cookies:
+            pass
+        elif 'sid=' in response.url:
+            raise VkAuthorizationError('Authorization error (captcha)')
+        elif 'security_check' in response.url:
+            raise VkAuthorizationError('Authorization error (phone number is needed)')
+        else:
+            raise VkAuthorizationError('Authorization error (bad password)')
 
         # OAuth2
         oauth_data = {
@@ -89,12 +96,10 @@ class APISession(object):
         }
         response = session.post('https://oauth.vk.com/authorize', oauth_data)
 
-        if u'login.vk.com/?act=grant_access' in response.text:
-            pattern = u'<form method="post" action="(?P<url>[^"]+)">'
-            match = re.search(pattern, response.text)
-            match_dict = match.groupdict()
-            if 'url' in match_dict:
-                response = session.get(match_dict['url'])
+        if 'access_token' not in response.url:
+            form_action = re.findall(u'<form method="post" action="(.+?)">', response.text)
+            if form_action:
+                response = session.get(form_action[0])
             else:
                 try:
                     json_data = response.json()
@@ -168,7 +173,7 @@ class APISession(object):
     def _signature(self, params):
         params = {key: encode_for_signature(value) for key, value in params.items()}
         params_str = ''.join('{}={}'.format(key, value) for key, value in sorted(params.items()))
-        params_str += self.api_secret
+        params_str += self.app_secret
         return md5(params_str.encode('utf8')).hexdigest()
 
 

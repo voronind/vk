@@ -11,8 +11,8 @@ from vk.utils import HandyList, make_handy, HandyDict
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # copy to test_props.py and fill it
-APP_ID = ''  # aka API id
-APP_SECRET = ''  # aka API secret
+APP_ID = ''  # aka API/Client id
+APP_SECRET = ''  # aka API/Client secret
 
 USER_EMAIL = ''
 USER_PASSWORD = ''
@@ -26,7 +26,6 @@ class VkTestCase(unittest.TestCase):
         self.vk_token_api = vk.API(test_props.APP_ID, test_props.USER_EMAIL, test_props.USER_PASSWORD)
         self.vk_token_api.api_version = u'5.20'
         self.vk_secret_api = vk.API(test_props.APP_ID, app_secret=test_props.APP_SECRET)
-
 
     def test_get_server_time_via_token(self):
         self._test_get_server_time(self.vk_token_api)
@@ -43,8 +42,7 @@ class VkTestCase(unittest.TestCase):
 
     def test_get_profiles_via_token(self):
         profiles = self.vk_token_api.users.get(user_id=1)
-
-        print(profiles)
+        profiles = make_handy(profiles)
         self.assertEqual(profiles.first.last_name, u'Дуров')
 
     def test_get_profiles_via_secret(self):
