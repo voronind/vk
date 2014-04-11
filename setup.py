@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='vk',
-    version='1.4.2',
+    version='1.4.4',
 
     author='Dmitry Voronin',
     author_email='dimka665@gmail.com',
