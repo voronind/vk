@@ -36,11 +36,11 @@ def json_iter_parse(response_text):
 
 
 class APISession(object):
-    def __init__(self, app_id, user_email=None, user_password=None, access_token=None, app_secret=None,
+    def __init__(self, app_id=None, user_email=None, user_password=None, access_token=None, app_secret=None,
                  scope='friends,photos,audio,video', timeout=1, api_version='5.20'):
 
-        if (not user_email or not user_password) and not access_token and not app_secret:
-            raise ValueError('Arguments user_email and user_password, or token, or app_secret are required')
+        if (not user_email or not user_password) and not app_id and not access_token and not app_secret:
+            raise ValueError('Arguments user_email and user_password, or app_id, or token, or app_secret are required')
 
         self.app_id = app_id
         self.app_secret = app_secret
@@ -61,12 +61,17 @@ class APISession(object):
             'Content-Type': 'application/x-www-form-urlencoded',
         }
 
-        if not access_token and user_email and user_password:
+        if not access_token and user_email and user_password and app_id:
             self.get_access_token()
 
     def get_access_token(self):
 
         session = requests.Session()
+        
+        if not self.user_email and not self.user_password and not self.app_id: 
+            # if you are upgrading a access token, but the class object 
+            # was created without a username and password
+            raise VkAuthorizationError('you cannot get the access token without user_email and user_password, or app_id')
 
         # Login
         login_data = {
