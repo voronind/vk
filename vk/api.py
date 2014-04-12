@@ -32,7 +32,7 @@ def json_iter_parse(response_text):
 
 
 class APISession(object):
-    def __init__(self, app_id, user_login=None, user_password=None, access_token=None, user_email=None,
+    def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None, user_email=None,
                  scope='offline', timeout=1, api_version='5.20'):
 
         user_login = user_login or user_email
@@ -40,7 +40,7 @@ class APISession(object):
         if (not user_login or not user_password) and not access_token:
             raise ValueError('Arguments user_login and user_password, or access_token are required')
 
-        if user_email:
+        if user_email:  # deprecated at April 11, 2014
             warnings.simplefilter('once')
             warnings.warn("Use 'user_login' instead of deprecated 'user_email'", DeprecationWarning, stacklevel=2)
 
@@ -165,7 +165,7 @@ class APISession(object):
 
         return self.session.post(url, params, timeout=timeout or self._timeout)
 
-    def captcha_is_needed(self):
+    def captcha_is_needed(self, captcha_sid, captcha_img):
         pass
 
 
