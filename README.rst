@@ -31,11 +31,11 @@ Make requests
 
     >>> vkapi.getServerTime()
     1395870238
-    >>> profiles = vkapi.user.get(user_id=1)
+    >>> profiles = vkapi.users.get(user_id=1)
     >>> profiles[0]['last_name']
     'Дуров'
     >>> # alternative syntax
-    >>> profiles = vkapi('user.get', user_id=1)
+    >>> profiles = vkapi('users.get', user_id=1)
     >>> profiles[0]['last_name']
     'Дуров'
 
