@@ -41,4 +41,4 @@ Make requests
 
 All API methods that can be called from server should be supported.
 
-See https://vk.com/developers.php?id=-1_11226273 for detailed API help.
+See https://vk.com/dev/methods for detailed API help.
