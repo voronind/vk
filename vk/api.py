@@ -170,6 +170,10 @@ class APISession(object):
         return self.session.post(url, params, timeout=timeout or self._default_timeout)
 
     def captcha_is_needed(self, error_data, method_name, **method_kwargs):
+        """
+        Default behavior on CAPTCHA is to raise exception
+        Reload this in child
+        """
         raise VkAPIMethodError(error_data)
 
 
