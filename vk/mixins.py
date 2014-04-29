@@ -13,7 +13,7 @@ class EnterCaptchaMixin(object):
         captcha_img = error_data.get('captcha_img')
 
         print('Captcha URL: {}'.format(captcha_img))
-        captcha_key = input('Enter captcha text:')
+        captcha_key = input('Enter captcha text: ')
 
         method_kwargs['captcha_sid'] = captcha_sid
         method_kwargs['captcha_key'] = captcha_key
