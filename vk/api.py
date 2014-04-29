@@ -55,6 +55,8 @@ class APISession(object):
         self.api_version = api_version
 
         self._timeout = timeout
+        
+        self.last_request = None # (method, kwargs)
 
         self.session = requests.Session()
         self.session.headers = {
@@ -128,6 +130,7 @@ class APISession(object):
         return APIMethod(self, method_name)
 
     def __call__(self, method, timeout=None, **kwargs):
+        self.last_request = (method, kwargs)
         response = self.method_request(method, timeout=timeout, **kwargs)
         response.raise_for_status()
 
@@ -137,6 +140,8 @@ class APISession(object):
         error_codes = []
         for data in json_iter_parse(response.text):
             if 'error' in data:
+                if data['error']['error_code'] == CAPTCHA_IS_NEEDED:
+                    self.captcha_is_needed(data['error']['captcha_sid'], data['error']['captcha_img'])
                 error_codes.append(data['error']['error_code'])
                 errors.append(data['error'])
 
@@ -166,7 +171,32 @@ class APISession(object):
         return self.session.post(url, params, timeout=timeout or self._timeout)
 
     def captcha_is_needed(self, captcha_sid, captcha_img):
-        pass
+        '''in this example you have 1 or 2 attempts to input text captcha!
+        example:
+            try:
+                some_variable.some_method()
+            except VkAPICaptchaError as err:
+                sid = err.captcha_sid
+                img = err.captcha_img
+                ...
+                some_variable.send_captcha_key(sid, captcha_key)
+                
+            or YOU CAN OVERRIDE THIS METHOD!!!
+            ----------------------------------
+            '''        
+        raise VkAPICaptchaError(captcha_sid, captcha_img)
+    
+    def send_captcha_key(self, captcha_sid, captcha_key):
+        self.last_request[1]['captcha_sid'] = captcha_sid
+        self.last_request[1]['captcha_key'] = captcha_key
+        # self.last_request[0] - method
+        # self.last_request[1] - params
+        self(self.last_request[0], timeout=self._timeout, **self.last_request[1])
+        
+    def resend_last_request(self):
+        # self.last_request[0] - method
+        # self.last_request[1] - params        
+        self(self.last_request[0], timeout=self._timeout, **self.last_request[1])
 
 
 class APIMethod(object):
@@ -200,3 +230,27 @@ class VkAPIMethodError(VkError):
 
     def __str__(self):
         return "{error_code}. {error_msg}. params = {request_params}".format(**self.error)
+    
+
+class VkAPICaptchaError(VkError):
+    __slots__ = ['captcha_sid', 'captcha_img']
+    '''using:
+    try:
+        some_variable.some_method()
+    except VkAPICaptchaError as err:
+        sid = err.captcha_sid
+        img = err.captcha_img
+        ...
+        some_variable.send_captcha_key(sid, captcha_key)
+    '''
+
+    def __init__(self, captcha_sid, captcha_img):
+        self.captcha_sid = captcha_sid
+        self.captcha_img = captcha_img
+        super(Exception, self).__init__()
+
+    def __str__(self):
+        return "14. captcha is needed"
+
+
+API = APISession
