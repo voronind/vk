@@ -54,7 +54,7 @@ class APISession(object):
         
         self.api_version = api_version
 
-        self._timeout = timeout
+        self._default_timeout = timeout
 
         self.session = requests.Session()
         self.session.headers = {
@@ -127,8 +127,8 @@ class APISession(object):
     def __getattr__(self, method_name):
         return APIMethod(self, method_name)
 
-    def __call__(self, method, timeout=None, **kwargs):
-        response = self.method_request(method, timeout=timeout, **kwargs)
+    def __call__(self, method_name, **method_kwargs):
+        response = self.method_request(method_name, **method_kwargs)
         response.raise_for_status()
 
         # there are may be 2 dicts in 1 json
@@ -137,8 +137,12 @@ class APISession(object):
         error_codes = []
         for data in json_iter_parse(response.text):
             if 'error' in data:
-                error_codes.append(data['error']['error_code'])
-                errors.append(data['error'])
+                error_data = data['error']
+                if error_data['error_code'] == CAPTCHA_IS_NEEDED:
+                    return self.captcha_is_needed(error_data, method_name, **method_kwargs)
+
+                error_codes.append(error_data['error_code'])
+                errors.append(error_data)
 
             if 'response' in data:
                 for error in errors:
@@ -149,38 +153,38 @@ class APISession(object):
             
         if INTERNAL_SERVER_ERROR in error_codes:  # invalid access token
             self.get_access_token()
-            return self(method, timeout=timeout, **kwargs)
+            return self(method_name, **method_kwargs)
         else:
             raise VkAPIMethodError(errors[0])
 
-    def method_request(self, method_name, timeout=None, **kwargs):
+    def method_request(self, method_name, timeout=None, **method_kwargs):
         if self.access_token:
             params = {
                 'access_token': self.access_token,
                 'timestamp': int(time.time()),
                 'v': self.api_version,
             }
-            params.update(kwargs)
+            params.update(method_kwargs)
             url = 'https://api.vk.com/method/' + method_name
 
-        return self.session.post(url, params, timeout=timeout or self._timeout)
+        return self.session.post(url, params, timeout=timeout or self._default_timeout)
 
-    def captcha_is_needed(self, captcha_sid, captcha_img):
-        pass
+    def captcha_is_needed(self, error_data, method_name, **method_kwargs):
+        raise VkAPIMethodError(error_data)
 
 
 class APIMethod(object):
-    __slots__ = ['_api_session', '_name']
+    __slots__ = ['_api_session', '_method_name']
 
-    def __init__(self, api_session, name):
+    def __init__(self, api_session, method_name):
         self._api_session = api_session
-        self._name = name
+        self._method_name = method_name
 
-    def __getattr__(self, name):
-        return APIMethod(self._api_session, self._name + '.' + name)
+    def __getattr__(self, method_name):
+        return APIMethod(self._api_session, self._method_name + '.' + method_name)
 
-    def __call__(self, **params):
-        return self._api_session(self._name, **params)
+    def __call__(self, **method_kwargs):
+        return self._api_session(self._method_name, **method_kwargs)
 
 
 class VkError(Exception):
