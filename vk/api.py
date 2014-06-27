@@ -57,10 +57,8 @@ class APISession(object):
         self._default_timeout = timeout
 
         self.session = requests.Session()
-        self.session.headers = {
-            'Accept': 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded',
-        }
+        self.session.headers['Accept'] = 'application/json'
+        self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'45
 
         if not access_token and user_login and user_password:
             self.get_access_token()
