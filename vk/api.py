@@ -58,7 +58,7 @@ class APISession(object):
 
         self.session = requests.Session()
         self.session.headers['Accept'] = 'application/json'
-        self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'45
+        self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
         if not access_token and user_login and user_password:
             self.get_access_token()
