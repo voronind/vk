@@ -4,7 +4,10 @@ import re
 import time
 import warnings
 
-from vk.utils import make_handy
+try:
+    from vk.utils import make_handy
+except ImportError:
+    from utils import make_handy # for local files
 
 try:
     from urlparse import urlparse, parse_qsl  # Python 2
@@ -15,6 +18,11 @@ try:
     import simplejson as json
 except ImportError:
     import json
+    
+try:
+    input = raw_input  # Python 2
+except NameError:
+    pass
 
 import requests
 
@@ -73,6 +81,7 @@ class APISession(object):
             'utf8': '1',
             'email': self.user_login,
             'pass': self.user_password,
+            'redirect_uri': 'https://oauth.vk.com/blank.html'
         }
 
         response = session.post('https://login.vk.com', login_data)
@@ -81,6 +90,15 @@ class APISession(object):
             pass
         elif 'sid=' in response.url:
             raise VkAuthorizationError('Authorization error (captcha)')
+        elif 'act=authcheck' in response.url:
+            # if you using 2-factor authorization
+            curhash = re.findall("'/al_login\.php'. \{act: 'a_authcheck_sms', hash: '(.+?)'", response.content)
+            code_data = {
+                'act': 'a_authcheck_code',
+                'hash': curhash[0],
+                'code': self.get_sms_code()
+            } 
+            response = session.post(u"https://vk.com/al_login.php", code_data)
         elif 'security_check' in response.url:
             raise VkAuthorizationError('Authorization error (phone number is needed)')
         else:
@@ -173,6 +191,13 @@ class APISession(object):
         Reload this in child
         """
         raise VkAPIMethodError(error_data)
+    
+    def get_sms_code(self):
+        """
+        Default behavior on CAPTCHA is to raise exception
+        Reload this in child
+        """        
+        return input("Enter your sms code: ")
 
 
 class APIMethod(object):
