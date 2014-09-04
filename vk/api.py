@@ -3,11 +3,7 @@
 import re
 import time
 import warnings
-
-try:
-    from vk.utils import make_handy
-except ImportError:
-    from utils import make_handy # for local files
+import requests
 
 try:
     from urlparse import urlparse, parse_qsl  # Python 2
@@ -18,13 +14,9 @@ try:
     import simplejson as json
 except ImportError:
     import json
-    
-try:
-    input = raw_input  # Python 2
-except NameError:
-    pass
 
-import requests
+
+REDIRECT_URI = 'https://oauth.vk.com/blank.html'
 
 # vk.com API Errors
 INTERNAL_SERVER_ERROR = 10  # Invalid access token
@@ -81,7 +73,7 @@ class APISession(object):
             'utf8': '1',
             'email': self.user_login,
             'pass': self.user_password,
-            'redirect_uri': 'https://oauth.vk.com/blank.html'
+            'redirect_uri': REDIRECT_URI
         }
 
         response = session.post('https://login.vk.com', login_data)
@@ -89,19 +81,13 @@ class APISession(object):
         if 'remixsid' in session.cookies:
             pass
         elif 'sid=' in response.url:
-            raise VkAuthorizationError('Authorization error (captcha)')
+            self.auth_captcha_is_needed(response.content, session)
         elif 'act=authcheck' in response.url:
-            # if you using 2-factor authorization
-            curhash = re.findall("'/al_login\.php'. \{act: 'a_authcheck_sms', hash: '(.+?)'", response.content)
-            code_data = {
-                'act': 'a_authcheck_code',
-                'hash': curhash[0],
-                'code': self.get_sms_code()
-            } 
-            response = session.post(u"https://vk.com/al_login.php", code_data)
+            self.auth_code_is_needed(response.content, session)
         elif 'security_check' in response.url:
-            raise VkAuthorizationError('Authorization error (phone number is needed)')
-        else:
+            self.phone_number_is_needed(response.content, session)
+        else:           
+            
             raise VkAuthorizationError('Authorization error (bad password)')
 
         # OAuth2
@@ -192,13 +178,27 @@ class APISession(object):
         """
         raise VkAPIMethodError(error_data)
     
-    def get_sms_code(self):
+    def auth_code_is_needed(self, content, session):
+        """
+        Default behavior on 2-AUTH CODE is to raise exception
+        Reload this in child
+        """           
+        raise VkAuthorizationError('Authorization error (2-factor code is needed)')
+    
+    def auth_captcha_is_needed(self, content, session):
         """
         Default behavior on CAPTCHA is to raise exception
         Reload this in child
-        """        
-        return input("Enter your sms code: ")
-
+        """              
+        raise VkAuthorizationError('Authorization error (captcha)')
+    
+    def phone_number_is_needed(self, content, session):
+        """
+        Default behavior on PHONE NUMBER is to raise exception
+        Reload this in child
+        """              
+        raise VkAuthorizationError('Authorization error (phone number is needed)')        
+    
 
 class APIMethod(object):
     __slots__ = ['_api_session', '_method_name']
