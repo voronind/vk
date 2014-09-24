@@ -198,10 +198,11 @@ class VkAuthorizationError(VkError):
 
 
 class VkAPIMethodError(VkError):
-    __slots__ = ['error']
+    __slots__ = ['error', 'code']
 
     def __init__(self, error):
         self.error = error
+        self.code = error['error_code']
         super(Exception, self).__init__()
 
     def __str__(self):
