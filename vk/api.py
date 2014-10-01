@@ -77,7 +77,7 @@ class APISession(object):
 
         response = session.post('https://login.vk.com', login_data)
 
-        if 'remixsid' in session.cookies:
+        if 'remixsid' in session.cookies or 'remixsid6' in session.cookies:
             pass
         elif 'sid=' in response.url:
             raise VkAuthorizationError('Authorization error (captcha)')
