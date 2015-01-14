@@ -16,7 +16,7 @@ except ImportError:
     import json
 
 
-REDIRECT_URI = 'https://oauth.vk.com/blank.html'
+REDIRECT_URI = 'http://example.com'
 
 # vk.com API Errors
 INTERNAL_SERVER_ERROR = 10  # Invalid access token
@@ -96,8 +96,9 @@ class APISession(object):
             'client_id': self.app_id,
             'scope': self.scope,
             'display': 'mobile',
+            'redirect_uri': REDIRECT_URI
         }
-        response = session.post('https://oauth.vk.com/authorize', oauth_data)
+        response = session.get('https://oauth.vk.com/authorize?client_id={0}&redirect_uri={1}&scope={2}&response_type=token&display=mobile'.format(oauth_data['client_id'], oauth_data['redirect_uri'], oauth_data['scope']))
 
         if 'access_token' not in response.url:
             form_action = re.findall(u'<form method="post" action="(.+?)">', response.text)
