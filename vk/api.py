@@ -28,16 +28,16 @@ def json_iter_parse(response_text):
     idx = 0
     while idx < len(response_text):
         obj, idx = decoder.raw_decode(response_text, idx)
-        yield obj   
+        yield obj
 
 
 class APISession(object):
     def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None, user_email=None,
-                 scope='offline', timeout=1, api_version='5.20'):
+                 scope='offline', timeout=1, api_version='5.20', noauth=False):
 
         user_login = user_login or user_email
 
-        if (not user_login or not user_password) and not access_token:
+        if (not user_login or not user_password) and not access_token and not noauth:
             raise ValueError('Arguments user_login and user_password, or access_token are required')
 
         if user_email:  # deprecated at April 11, 2014
@@ -46,12 +46,14 @@ class APISession(object):
 
         self.app_id = app_id
 
+        self.noauth = noauth
+
         self.user_login = user_login
         self.user_password = user_password
 
         self.access_token = access_token
         self.scope = scope or ''
-        
+
         self.api_version = api_version
 
         self._default_timeout = timeout
@@ -60,7 +62,7 @@ class APISession(object):
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
-        if not access_token and user_login and user_password:
+        if not access_token and user_login and user_password and not noauth:
             self.get_access_token()
 
     def get_access_token(self):
@@ -86,8 +88,7 @@ class APISession(object):
             self.auth_code_is_needed(response.content, session)
         elif 'security_check' in response.url:
             self.phone_number_is_needed(response.content, session)
-        else:           
-            
+        else:
             raise VkAuthorizationError('Authorization error (bad password)')
 
         # OAuth2
@@ -152,7 +153,7 @@ class APISession(object):
 
                 # return make_handy(data['response'])
                 return data['response']
-            
+
         if INTERNAL_SERVER_ERROR in error_codes:  # invalid access token
             self.get_access_token()
             return self(method_name, **method_kwargs)
@@ -160,12 +161,13 @@ class APISession(object):
             raise VkAPIMethodError(errors[0])
 
     def method_request(self, method_name, timeout=None, **method_kwargs):
-        if self.access_token:
+        if self.access_token or self.noauth:
             params = {
-                'access_token': self.access_token,
                 'timestamp': int(time.time()),
                 'v': self.api_version,
             }
+            if self.access_token:
+                params['access_token'] = self.access_token
             params.update(method_kwargs)
             url = 'https://api.vk.com/method/' + method_name
 
@@ -177,28 +179,28 @@ class APISession(object):
         Reload this in child
         """
         raise VkAPIMethodError(error_data)
-    
+
     def auth_code_is_needed(self, content, session):
         """
         Default behavior on 2-AUTH CODE is to raise exception
         Reload this in child
-        """           
+        """
         raise VkAuthorizationError('Authorization error (2-factor code is needed)')
-    
+
     def auth_captcha_is_needed(self, content, session):
         """
         Default behavior on CAPTCHA is to raise exception
         Reload this in child
-        """              
+        """
         raise VkAuthorizationError('Authorization error (captcha)')
-    
+
     def phone_number_is_needed(self, content, session):
         """
         Default behavior on PHONE NUMBER is to raise exception
         Reload this in child
-        """              
-        raise VkAuthorizationError('Authorization error (phone number is needed)')        
-    
+        """
+        raise VkAuthorizationError('Authorization error (phone number is needed)')
+
 
 class APIMethod(object):
     __slots__ = ['_api_session', '_method_name']
