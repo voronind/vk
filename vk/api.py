@@ -19,7 +19,7 @@ except ImportError:
 REDIRECT_URI = 'https://oauth.vk.com/blank.html'
 
 # vk.com API Errors
-INTERNAL_SERVER_ERROR = 10  # Invalid access token
+AUTHORIZATION_FAILED = 5 # Invalid access token
 CAPTCHA_IS_NEEDED = 14
 
 
@@ -33,12 +33,9 @@ def json_iter_parse(response_text):
 
 class APISession(object):
     def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None, user_email=None,
-                 scope='offline', timeout=1, api_version='5.20'):
+                 scope='offline', timeout=1, api_version='5.28'):
 
         user_login = user_login or user_email
-
-        if (not user_login or not user_password) and not access_token:
-            raise ValueError('Arguments user_login and user_password, or access_token are required')
 
         if user_email:  # deprecated at April 11, 2014
             warnings.simplefilter('once')
@@ -60,10 +57,9 @@ class APISession(object):
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
-        if not access_token and user_login and user_password:
-            self.get_access_token()
-
     def get_access_token(self):
+        if (not self.user_login or not self.user_password) and not self.access_token:
+            raise ValueError('Arguments user_login and user_password, or access_token are required')
 
         session = requests.Session()
 
@@ -153,21 +149,22 @@ class APISession(object):
                 # return make_handy(data['response'])
                 return data['response']
             
-        if INTERNAL_SERVER_ERROR in error_codes:  # invalid access token
+        if AUTHORIZATION_FAILED in error_codes:  # invalid access token
             self.get_access_token()
             return self(method_name, **method_kwargs)
         else:
             raise VkAPIMethodError(errors[0])
 
     def method_request(self, method_name, timeout=None, **method_kwargs):
+        params = {
+            'timestamp': int(time.time()),
+            'v': self.api_version,
+        }
         if self.access_token:
-            params = {
-                'access_token': self.access_token,
-                'timestamp': int(time.time()),
-                'v': self.api_version,
-            }
-            params.update(method_kwargs)
-            url = 'https://api.vk.com/method/' + method_name
+            params['access_token'] = self.access_token
+            
+        params.update(method_kwargs)
+        url = 'https://api.vk.com/method/' + method_name
 
         return self.session.post(url, params, timeout=timeout or self._default_timeout)
 
