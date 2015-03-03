@@ -36,24 +36,31 @@ class APISession(object):
                  scope='offline', timeout=1, api_version='5.28'):
 
         self.app_id = app_id
-
         self.user_login = user_login
         self.user_password = user_password
 
-        self.access_token = access_token
-        self.scope = scope or ''
-        
+        self.scope = scope
         self.api_version = api_version
 
-        self._default_timeout = timeout
+        self.default_timeout = timeout
+
+        if not access_token and (user_login or user_password):
+            self.get_access_token()
+        else:
+            self.access_token = access_token
 
         self.session = requests.Session()
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
     def get_access_token(self):
-        if (not self.user_login or not self.user_password) and not self.access_token:
-            raise ValueError('Arguments user_login and user_password, or access_token are required')
+        if self.user_login and not self.user_password:
+            # Need user password
+            pass
+
+        if not self.user_login and self.user_password:
+            # Need user login
+            pass
 
         session = requests.Session()
 
@@ -76,8 +83,7 @@ class APISession(object):
             self.auth_code_is_needed(response.content, session)
         elif 'security_check' in response.url:
             self.phone_number_is_needed(response.content, session)
-        else:           
-            
+        else:
             raise VkAuthorizationError('Authorization error (bad password)')
 
         # OAuth2
@@ -140,10 +146,10 @@ class APISession(object):
                 for error in errors:
                     warnings.warn(str(error))
 
-                # return make_handy(data['response'])
                 return data['response']
             
         if AUTHORIZATION_FAILED in error_codes:  # invalid access token
+            self.access_token = None
             self.get_access_token()
             return self(method_name, **method_kwargs)
         else:
@@ -160,7 +166,7 @@ class APISession(object):
         params.update(method_kwargs)
         url = 'https://api.vk.com/method/' + method_name
 
-        return self.session.post(url, params, timeout=timeout or self._default_timeout)
+        return self.session.post(url, params, timeout=timeout or self.default_timeout)
 
     def captcha_is_needed(self, error_data, method_name, **method_kwargs):
         """
