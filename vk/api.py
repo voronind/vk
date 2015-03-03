@@ -19,7 +19,7 @@ except ImportError:
 REDIRECT_URI = 'https://oauth.vk.com/blank.html'
 
 # vk.com API Errors
-AUTHORIZATION_FAILED = 5 # Invalid access token
+AUTHORIZATION_FAILED = 5  # Invalid access token
 CAPTCHA_IS_NEEDED = 14
 
 
@@ -32,14 +32,8 @@ def json_iter_parse(response_text):
 
 
 class APISession(object):
-    def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None, user_email=None,
+    def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None,
                  scope='offline', timeout=1, api_version='5.28'):
-
-        user_login = user_login or user_email
-
-        if user_email:  # deprecated at April 11, 2014
-            warnings.simplefilter('once')
-            warnings.warn("Use 'user_login' instead of deprecated 'user_email'", DeprecationWarning, stacklevel=2)
 
         self.app_id = app_id
 

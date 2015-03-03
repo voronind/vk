@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='vk',
-    version='1.5.2',
+    version='1.6',
 
     author='Dmitry Voronin',
     author_email='dimka665@gmail.com',
@@ -15,7 +15,7 @@ setup(
     packages=find_packages(),
     install_requires='requests',
 
-    license='MIT license',
+    license='MIT License',
     classifiers=[
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
