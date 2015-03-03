@@ -1,1 +1,5 @@
 requests
+
+# Development only
+Sphinx
+sphinx-autobuild!=0.3

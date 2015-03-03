@@ -54,6 +54,3 @@ docs/_build/
 
 # IDEs
 .idea/
-
-# Private
-fabric.ini
