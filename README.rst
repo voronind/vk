@@ -1,20 +1,20 @@
-================================
+=========================
 vk.com API Python wrapper
-================================
+=========================
 
 This is a vk.com (aka vkontakte.ru, largest Russian social network)
 python API wrapper. The goal is to support all API methods (current and future)
 that can be accessed from server.
 
 Install
-================
+=======
 
 .. code:: bash
 
     pip install vk
 
 Get access
-================
+==========
 
 .. code:: python
 
@@ -26,7 +26,7 @@ Get access
     vkapi = vk.API(access_token='access_token')
     
 Make requests
-===============
+=============
 .. code:: python
 
     >>> vkapi.getServerTime()
