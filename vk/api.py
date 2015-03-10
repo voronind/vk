@@ -228,4 +228,4 @@ class VkAPIMethodError(VkError):
         super(Exception, self).__init__()
 
     def __str__(self):
-        return "{error_code}. {error_msg}. params = {request_params}".format(**self.error)
+        return "{error_code}. {error_msg}. redirect uri = {redirect_uri}, params = {request_params}".format(**self.error)
