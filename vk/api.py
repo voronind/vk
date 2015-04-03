@@ -4,6 +4,7 @@ import re
 import time
 import warnings
 import requests
+from collections import Iterable
 
 try:
     from urlparse import urlparse, parse_qsl  # Python 2
@@ -14,6 +15,9 @@ try:
     import simplejson as json
 except ImportError:
     import json
+
+
+STRING_TYPES = (str, bytes, bytearray)
 
 
 REDIRECT_URI = 'https://oauth.vk.com/blank.html'
@@ -29,6 +33,15 @@ def json_iter_parse(response_text):
     while idx < len(response_text):
         obj, idx = decoder.raw_decode(response_text, idx)
         yield obj
+
+
+def stringify_values(method_kwargs):
+    stringified_method_kwargs = {}
+    for key, value in method_kwargs.items():
+        if not isinstance(value, STRING_TYPES) and isinstance(value, Iterable):
+            value = ','.join(map(str, value))
+        stringified_method_kwargs[key] = value
+    return stringified_method_kwargs
 
 
 class APISession(object):
@@ -162,7 +175,8 @@ class APISession(object):
         }
         if self.access_token:
             params['access_token'] = self.access_token
-            
+
+        method_kwargs = stringify_values(method_kwargs)
         params.update(method_kwargs)
         url = 'https://api.vk.com/method/' + method_name
 
