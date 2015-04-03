@@ -1,3 +1,5 @@
+
+from vk.api import version
 from vk.api import APISession as API
 from vk.api import VkError, VkAuthorizationError, VkAPIMethodError
 

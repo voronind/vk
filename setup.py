@@ -2,9 +2,12 @@
 
 from setuptools import setup, find_packages
 
+import vk
+
+
 setup(
     name='vk',
-    version='2.0-alpha',
+    version=vk.version,
 
     author='Dmitry Voronin',
     author_email='dimka665@gmail.com',

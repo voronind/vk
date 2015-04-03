@@ -17,6 +17,9 @@ except ImportError:
     import json
 
 
+version = '2.0-alpha'
+
+
 STRING_TYPES = (str, bytes, bytearray)
 
 
