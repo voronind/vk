@@ -42,6 +42,10 @@ class VkTestCase(unittest.TestCase):
         profiles = make_handy(profiles)
         self.assertEqual(profiles.first.last_name, u'Дуров')
 
+    def test_get_profiles_via_token_2(self):
+        profiles = self.vk_api.users.get(user_ids=[1, 2, 3, 4, 5])
+        self.assertEqual(profiles[-1]['last_name'], u'Перекопский')
+
 
 class HandyContainersTestCase(unittest.TestCase):
 
