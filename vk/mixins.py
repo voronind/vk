@@ -1,22 +1,18 @@
-import logging
+
 import re
+import logging
 
 import requests
+
 from vk.exceptions import VkAuthorizationError
+from vk.utils import urlparse, parse_qsl, raw_input
 
-from vk.utils import urlparse, parse_qsl
 
-try:
-    input = raw_input  # Python 2
-except NameError:
-    pass
+logger = logging.getLogger('vk')
 
 
 class OAuthMixin(object):
-    # LOGIN_URL = 'https://login.vk.com'
-    # LOGIN_URL = 'https://vk.com/login'
-    LOGIN_URL = 'https://login.vk.com/?act=login'
-    MOBILE_LOGIN_URL = 'https://m.vk.com'
+    LOGIN_URL = 'https://m.vk.com'
     REDIRECT_URI = 'https://oauth.vk.com/blank.html'
 
     def __init__(self, **kwargs):
@@ -25,14 +21,13 @@ class OAuthMixin(object):
         self.user_password = kwargs.pop('user_password', None)
 
         super(OAuthMixin, self).__init__()
-        self.logger = logging.getLogger('vk')
 
     def get_access_token(self):
         """
         Get access token using user_login and user_password
         """
-        self.logger.info('Try to get access token via OAuth')
-        self.logger.info('%s', self.user_login)
+        logger.info('Try to get access token via OAuth')
+        logger.info('%s', self.user_login)
 
         if self.user_login and not self.user_password:
             # Need user password
@@ -44,7 +39,7 @@ class OAuthMixin(object):
 
         auth_session = requests.Session()
 
-        login_form_response = auth_session.get(self.MOBILE_LOGIN_URL)
+        login_form_response = auth_session.get(self.LOGIN_URL)
 
         login_form_action = re.findall(r'<form ?.* action="(.+)"', login_form_response.text)
         if not login_form_action:
@@ -58,10 +53,8 @@ class OAuthMixin(object):
 
         response = auth_session.post(login_form_action[0], login_form_data)
 
-        self.logger.info('Cookies %s', auth_session.cookies)
-        self.logger.info('Login response url %s', response.url)
-
-        with open('debug-login.html', 'wb') as debug_html: debug_html.write(response.content)
+        logger.info('Cookies %s', auth_session.cookies)
+        logger.info('Login response url %s', response.url)
 
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
             pass
@@ -82,10 +75,9 @@ class OAuthMixin(object):
             'display': 'mobile',
         }
         response = auth_session.post('https://oauth.vk.com/authorize', oauth_data)
-        self.logger.info('OAuth URL: %s %s', response.request.url, oauth_data)
+        logger.info('OAuth URL: %s %s', response.request.url, oauth_data)
 
         if 'access_token' not in response.url:
-        # if 'code' not in response.url:
             form_action = re.findall(u'<form method="post" action="(.+?)">', response.text)
             if form_action:
                 response = auth_session.get(form_action[0])
@@ -93,8 +85,6 @@ class OAuthMixin(object):
                 try:
                     json_data = response.json()
                 except ValueError:  # not json in response
-                    # self.logger.error('HTML: %s', response.content)
-                    with open('debug-oauth.html', 'wb') as debug_html: debug_html.write(response.content)
                     error_message = 'OAuth2 grant access error'
                 else:
                     error_message = 'VK error: [{0}] {1}'.format(
@@ -107,7 +97,7 @@ class OAuthMixin(object):
         auth_session.close()
 
         parsed_url = urlparse(response.url)
-        self.logger.info('Parsed URL: %s', parsed_url)
+        logger.info('Parsed URL: %s', parsed_url)
 
         token_dict = dict(parse_qsl(parsed_url.fragment))
         if 'access_token' in token_dict:
@@ -124,7 +114,7 @@ class EnterCaptchaMixin(object):
         captcha_img = error_data.get('captcha_img')
 
         print('Captcha URL: {}'.format(captcha_img))
-        captcha_key = input('Enter captcha text: ')
+        captcha_key = raw_input('Enter captcha text: ')
 
         method_kwargs['captcha_sid'] = captcha_sid
         method_kwargs['captcha_key'] = captcha_key

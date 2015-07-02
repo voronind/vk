@@ -1,53 +1,30 @@
 # coding=utf8
 
-import re
 import time
 import logging
 import logging.config
 import warnings
-from collections import Iterable
-from vk.exceptions import VkAuthorizationError, VkAPIMethodError
 
 import requests
 
 from vk.logs import LOGGING_CONFIG
 from vk.utils import stringify_values, json_iter_parse
-
-
-version = '2.0-alpha'
-
-
-# vk.com API Errors
-AUTHORIZATION_FAILED = 5  # Invalid access token
-CAPTCHA_IS_NEEDED = 14
+from vk.exceptions import VkAuthorizationError, VkAPIMethodError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
 
 
 logging.config.dictConfig(LOGGING_CONFIG)
 
 
-
 class APISession(object):
-    # def __init__(self, **kwargs):
-    # def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None,
-    #              scope='offline', timeout=1, api_version='5.28'):
 
     def __init__(self, log_level='INFO',
                  access_token=None, scope='offline', timeout=1, api_version='5.28', **kwargs):
-
-        # self.app_id = app_id
-        # self.user_login = user_login
-        # self.user_password = user_password
 
         self.scope = scope
         self.api_version = api_version
 
         self.default_timeout = timeout
         self.access_token = access_token
-
-        # if not access_token and (user_login or user_password):
-        #     self.get_access_token()
-        # else:
-        #     self.access_token = access_token
 
         super(APISession, self).__init__(**kwargs)
 
@@ -173,9 +150,4 @@ class APIMethod(object):
 from vk.mixins import OAuthMixin
 
 class OAuthAPI(OAuthMixin, APISession):
-# class OAuthAPI(APISession, OAuthMixin):
     pass
-
-    # def __init__(self, **kwargs):
-    #     super(APISession, self).__init__(kwargs)
-

@@ -2,12 +2,10 @@
 
 from setuptools import setup, find_packages
 
-import vk
-
 
 setup(
     name='vk',
-    version=vk.version,
+    version='2.0-beta',
 
     author='Dmitry Voronin',
     author_email='dimka665@gmail.com',
@@ -26,6 +24,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
     keywords='vk.com api vk wrappper',
