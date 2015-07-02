@@ -2,146 +2,86 @@
 
 import re
 import time
+import logging
+import logging.config
 import warnings
-import requests
 from collections import Iterable
+from vk.exceptions import VkAuthorizationError, VkAPIMethodError
 
-try:
-    from urlparse import urlparse, parse_qsl  # Python 2
-except ImportError:
-    from urllib.parse import urlparse, parse_qsl  # Python 3
+import requests
 
-try:
-    import simplejson as json
-except ImportError:
-    import json
+from vk.logs import LOGGING_CONFIG
+from vk.utils import stringify_values, json_iter_parse
 
 
 version = '2.0-alpha'
 
-
-STRING_TYPES = (str, bytes, bytearray)
-
-
-REDIRECT_URI = 'https://oauth.vk.com/blank.html'
 
 # vk.com API Errors
 AUTHORIZATION_FAILED = 5  # Invalid access token
 CAPTCHA_IS_NEEDED = 14
 
 
-def json_iter_parse(response_text):
-    decoder = json.JSONDecoder(strict=False)
-    idx = 0
-    while idx < len(response_text):
-        obj, idx = decoder.raw_decode(response_text, idx)
-        yield obj
+logging.config.dictConfig(LOGGING_CONFIG)
 
-
-def stringify_values(method_kwargs):
-    stringified_method_kwargs = {}
-    for key, value in method_kwargs.items():
-        if not isinstance(value, STRING_TYPES) and isinstance(value, Iterable):
-            value = ','.join(map(str, value))
-        stringified_method_kwargs[key] = value
-    return stringified_method_kwargs
 
 
 class APISession(object):
-    def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None,
-                 scope='offline', timeout=1, api_version='5.28'):
+    # def __init__(self, **kwargs):
+    # def __init__(self, app_id=None, user_login=None, user_password=None, access_token=None,
+    #              scope='offline', timeout=1, api_version='5.28'):
 
-        self.app_id = app_id
-        self.user_login = user_login
-        self.user_password = user_password
+    def __init__(self, log_level='INFO',
+                 access_token=None, scope='offline', timeout=1, api_version='5.28', **kwargs):
+
+        # self.app_id = app_id
+        # self.user_login = user_login
+        # self.user_password = user_password
 
         self.scope = scope
         self.api_version = api_version
 
         self.default_timeout = timeout
+        self.access_token = access_token
 
-        if not access_token and (user_login or user_password):
-            self.get_access_token()
-        else:
-            self.access_token = access_token
+        # if not access_token and (user_login or user_password):
+        #     self.get_access_token()
+        # else:
+        #     self.access_token = access_token
+
+        super(APISession, self).__init__(**kwargs)
+
+        self.logger = logging.getLogger('vk')
+        self.logger.setLevel(log_level)
 
         self.session = requests.Session()
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
+    def drop_access_token(self):
+        self.logger.info('Access token was dropped')
+        self.access_token = None
+
+    def check_access_token(self):
+        self.logger.info('Check that we have access token')
+        if not self.access_token:
+            self.logger.info('No access token. Try to get one')
+            self.get_access_token()
+
     def get_access_token(self):
-        if self.user_login and not self.user_password:
-            # Need user password
-            pass
-
-        if not self.user_login and self.user_password:
-            # Need user login
-            pass
-
-        session = requests.Session()
-
-        # Login
-        login_data = {
-            'act': 'login',
-            'utf8': '1',
-            'email': self.user_login,
-            'pass': self.user_password,
-            'redirect_uri': REDIRECT_URI
-        }
-
-        response = session.post('https://login.vk.com', login_data)
-
-        if 'remixsid' in session.cookies or 'remixsid6' in session.cookies:
-            pass
-        elif 'sid=' in response.url:
-            self.auth_captcha_is_needed(response.content, session)
-        elif 'act=authcheck' in response.url:
-            self.auth_code_is_needed(response.content, session)
-        elif 'security_check' in response.url:
-            self.phone_number_is_needed(response.content, session)
-        else:
-            raise VkAuthorizationError('Authorization error (bad password)')
-
-        # OAuth2
-        oauth_data = {
-            'response_type': 'token',
-            'client_id': self.app_id,
-            'scope': self.scope,
-            'display': 'mobile',
-        }
-        response = session.post('https://oauth.vk.com/authorize', oauth_data)
-
-        if 'access_token' not in response.url:
-            form_action = re.findall(u'<form method="post" action="(.+?)">', response.text)
-            if form_action:
-                response = session.get(form_action[0])
-            else:
-                try:
-                    json_data = response.json()
-                except ValueError:  # not json in response
-                    error_message = 'OAuth2 grant access error'
-                else:
-                    error_message = 'VK error: [{0}] {1}'.format(
-                        json_data['error'],
-                        json_data['error_description']
-                    )
-                session.close()
-                raise VkAuthorizationError(error_message)
-
-        session.close()
-
-        parsed_url = urlparse(response.url)
-        token_dict = dict(parse_qsl(parsed_url.fragment))
-        if 'access_token' in token_dict:
-            self.access_token = token_dict['access_token']
-            self.expires_in = token_dict['expires_in']
-        else:
-            raise VkAuthorizationError('OAuth2 authorization error')
+        """
+        Overrideable
+        """
+        self.logger.info('Do nothing for getting access token')
+        pass
 
     def __getattr__(self, method_name):
         return APIMethod(self, method_name)
 
     def __call__(self, method_name, **method_kwargs):
+
+        self.check_access_token()
+
         response = self.method_request(method_name, **method_kwargs)
         response.raise_for_status()
 
@@ -165,8 +105,8 @@ class APISession(object):
                 return data['response']
             
         if AUTHORIZATION_FAILED in error_codes:  # invalid access token
-            self.access_token = None
-            self.get_access_token()
+            self.logger.info('Authorization failed. Access token will be dropped')
+            self.drop_access_token()
             return self(method_name, **method_kwargs)
         else:
             raise VkAPIMethodError(errors[0])
@@ -183,7 +123,9 @@ class APISession(object):
         params.update(method_kwargs)
         url = 'https://api.vk.com/method/' + method_name
 
-        return self.session.post(url, params, timeout=timeout or self.default_timeout)
+        self.logger.info('Make request %s, %s', url, params)
+        response = self.session.post(url, params, timeout=timeout or self.default_timeout)
+        return response
 
     def captcha_is_needed(self, error_data, method_name, **method_kwargs):
         """
@@ -228,27 +170,12 @@ class APIMethod(object):
         return self._api_session(self._method_name, **method_kwargs)
 
 
-class VkError(Exception):
+from vk.mixins import OAuthMixin
+
+class OAuthAPI(OAuthMixin, APISession):
+# class OAuthAPI(APISession, OAuthMixin):
     pass
 
+    # def __init__(self, **kwargs):
+    #     super(APISession, self).__init__(kwargs)
 
-class VkAuthorizationError(VkError):
-    pass
-
-
-class VkAPIMethodError(VkError):
-    __slots__ = ['error', 'code', 'message', 'request_params', 'redirect_uri']
-
-    def __init__(self, error):
-        super(VkAPIMethodError, self).__init__()
-        self.error = error
-        self.code = error.get('error_code')
-        self.message = error.get('error_msg')
-        self.request_params = error.get('request_params')
-        self.redirect_uri = error.get('redirect_uri')
-
-    def __str__(self):
-        error_message = '{self.code}. {self.message}. request_params = {self.request_params}'.format(self=self)
-        if self.redirect_uri:
-            error_message += ',\nredirect_uri = "{self.redirect_uri}"'.format(self=self)
-        return error_message
