@@ -15,19 +15,22 @@ class OAuthMixin(object):
     LOGIN_URL = 'https://m.vk.com'
     REDIRECT_URI = 'https://oauth.vk.com/blank.html'
 
-    def __init__(self, **kwargs):
-        self.app_id = kwargs.pop('app_id', None)
-        self.user_login = kwargs.pop('user_login', None)
-        self.user_password = kwargs.pop('user_password', None)
+    def __init__(self, app_id=None, user_login='', user_password='', **kwargs):
 
-        super(OAuthMixin, self).__init__()
+        logger.debug('OAuthMixin.__init__(app_id=%(app_id)r, user_login=%(user_login)r, user_password=%(user_password)r, **kwargs=%(kwargs)s)',
+            {'app_id': app_id, 'user_login': user_login, 'user_password': user_password, 'kwargs': kwargs})
+
+        super(OAuthMixin, self).__init__(**kwargs)
+
+        self.app_id = app_id
+        self.user_login = user_login
+        self.user_password = user_password
 
     def get_access_token(self):
         """
         Get access token using user_login and user_password
         """
         logger.info('Try to get access token via OAuth')
-        logger.info('%s', self.user_login)
 
         if self.user_login and not self.user_password:
             # Need user password
