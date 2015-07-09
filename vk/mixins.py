@@ -129,5 +129,5 @@ class EnterCaptchaMixin(object):
         } 
         response = session.post(u"https://vk.com/al_login.php", code_data)
     
-        def get_auth_code(self):
-            return input("get 2-auth code: ")
+    def get_auth_code(self):
+        return raw_input("get 2-auth code: ")
