@@ -1,4 +1,4 @@
 
-from vk.api import OAuthAPI
+from vk.api import API, OAuthAPI
 
-API = OAuthAPI
+# API = OAuthAPI

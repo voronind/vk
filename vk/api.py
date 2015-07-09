@@ -10,46 +10,46 @@ import requests
 from vk.logs import LOGGING_CONFIG
 from vk.utils import stringify_values, json_iter_parse
 from vk.exceptions import VkAuthorizationError, VkAPIMethodError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
+from vk.mixins import OAuthMixin
 
 
 logging.config.dictConfig(LOGGING_CONFIG)
+logger = logging.getLogger('vk')
 
 
 class APISession(object):
 
-    def __init__(self, log_level='INFO',
-                 access_token=None, scope='offline', timeout=1, api_version='5.28', **kwargs):
+    def __init__(self, access_token=None, scope='offline', default_timeout=10, api_version='5.28'):
+
+        logger.debug('API.__init__(...)')
 
         self.scope = scope
         self.api_version = api_version
 
-        self.default_timeout = timeout
+        self.default_timeout = default_timeout
         self.access_token = access_token
-
-        super(APISession, self).__init__(**kwargs)
-
-        self.logger = logging.getLogger('vk')
-        self.logger.setLevel(log_level)
 
         self.session = requests.Session()
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
     def drop_access_token(self):
-        self.logger.info('Access token was dropped')
+        logger.info('Access token was dropped')
         self.access_token = None
 
     def check_access_token(self):
-        self.logger.info('Check that we have access token')
-        if not self.access_token:
-            self.logger.info('No access token. Try to get one')
+        logger.debug('Check that we have access token')
+        if self.access_token:
+            logger.debug('access_token=%r', self.access_token)
+        else:
+            logger.debug('No access token')
             self.get_access_token()
 
     def get_access_token(self):
         """
         Overrideable
         """
-        self.logger.info('Do nothing for getting access token')
+        logger.debug('Do nothing for getting access token')
         pass
 
     def __getattr__(self, method_name):
@@ -82,7 +82,7 @@ class APISession(object):
                 return data['response']
             
         if AUTHORIZATION_FAILED in error_codes:  # invalid access token
-            self.logger.info('Authorization failed. Access token will be dropped')
+            logger.info('Authorization failed. Access token will be dropped')
             self.drop_access_token()
             return self(method_name, **method_kwargs)
         else:
@@ -100,7 +100,7 @@ class APISession(object):
         params.update(method_kwargs)
         url = 'https://api.vk.com/method/' + method_name
 
-        self.logger.info('Make request %s, %s', url, params)
+        logger.info('Make request %s, %s', url, params)
         response = self.session.post(url, params, timeout=timeout or self.default_timeout)
         return response
 
@@ -129,8 +129,8 @@ class APISession(object):
         """
         Default behavior on PHONE NUMBER is to raise exception
         Reload this in child
-        """              
-        raise VkAuthorizationError('Authorization error (phone number is needed)')        
+        """
+        raise VkAuthorizationError('Authorization error (phone number is needed)')
     
 
 class APIMethod(object):
@@ -147,7 +147,8 @@ class APIMethod(object):
         return self._api_session(self._method_name, **method_kwargs)
 
 
-from vk.mixins import OAuthMixin
-
 class OAuthAPI(OAuthMixin, APISession):
     pass
+
+
+API = APISession
