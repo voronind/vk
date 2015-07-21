@@ -5,7 +5,7 @@ import logging
 import requests
 
 from vk.exceptions import VkAuthorizationError
-from vk.utils import urlparse, parse_qsl, raw_input
+from vk.utils import urlparse, parse_qsl, raw_input, urlencode
 
 
 logger = logging.getLogger('vk')
@@ -16,6 +16,7 @@ class OAuthMixin(object):
     REDIRECT_URI = 'https://oauth.vk.com/blank.html'
     AUTHORISE_URI = 'https://oauth.vk.com/authorize'
     LOGIN_URI = 'https://m.vk.com/login'
+    CAPTCHA_URI = 'https://m.vk.com/captcha.php'
 
     def __init__(self, app_id=None, user_login='', user_password='', **kwargs):
 
@@ -65,10 +66,11 @@ class OAuthMixin(object):
         logger.debug('Cookies %s', auth_session.cookies)
         logger.info('Login response url %s', response.url)
 
+        captcha = dict()
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
             pass
         elif 'sid=' in response.url:
-            self.auth_captcha_is_needed(response.content, auth_session)
+            self.auth_captcha_is_needed(response, login_form_data, auth_session)
         elif 'act=authcheck' in response.url:
             self.auth_code_is_needed(response.text, auth_session)
         elif 'security_check' in response.url:
@@ -145,23 +147,52 @@ class OAuthMixin(object):
         logger.debug('%s - %s', self.LOGIN_URI, response.status_code)
     
     def get_auth_code(self):
-        # Reload this in child!
+        """
+        Reload this in child
+        """
         return raw_input("get 2-auth code: ")
 
     def phone_number_is_needed(self, content, session):
         logger.debug('phone number is needed')
 
-    def auth_captcha_is_needed(self, content, session):
-        #ogger.debug('captcha is needed')
-        pass
+    def auth_captcha_is_needed(self, response, login_form_data, session):
+        logger.info('Captcha is needed')
 
-'''def captcha_is_needed(self, error_data, method_name, **method_kwargs):
--        captcha_sid = error_data.get('captcha_sid')
--        captcha_img = error_data.get('captcha_img')
--
--        print('Captcha URL: {}'.format(captcha_img))
--        captcha_key = raw_input('Enter captcha text: ')
--
--        method_kwargs['captcha_sid'] = captcha_sid
--        method_kwargs['captcha_key'] = captcha_key
--        return self(method_name, **method_kwargs)'''
+        logger.debug('Response url %s', response.url)
+        parsed_url = urlparse(response.url)
+        response_url_dict = dict(parse_qsl(parsed_url.query))
+
+        logger.debug('response_url_dict %s', response_url_dict)
+
+        form_url = re.findall(r'<form method="post" action="(.+)" novalidate>', response.text)
+        logger.debug('form_url %s', form_url)
+        if not form_url:
+            raise VkAuthorizationError('Cannot find form url')
+
+        captcha_url = '%s?s=%s&sid=%s' % (self.CAPTCHA_URI, response_url_dict['s'], response_url_dict['sid'])
+        logger.debug('Captcha url %s', captcha_url)
+        self.show_captcha(captcha_url, session)
+
+        login_form_data['captcha_sid'] = response_url_dict['sid']
+        login_form_data['captcha_key'] = self.get_captcha_key()
+
+        logger.debug('POST %s data %s', form_url[0], login_form_data)
+        response = session.post(form_url[0], login_form_data)
+        logger.debug('%s - %s', form_url[0], response.status_code)
+
+        logger.debug('Cookies %s', session.cookies)
+        if 'remixsid' not in session.cookies and 'remixsid6' not in session.cookies:
+            raise VkAuthorizationError('Authorization error')
+
+    def show_captcha(self, url, session):
+        """
+        Reload this in child
+        """
+        print('Open captcha url:', url)
+
+    def get_captcha_key(self):
+        """
+        Reload this in child
+        """
+        return raw_input('Enter captcha text: ')
+
