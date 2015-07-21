@@ -14,8 +14,10 @@ logger = logging.getLogger('vk')
 class OAuthMixin(object):
     LOGIN_URL = 'https://m.vk.com'
     REDIRECT_URI = 'https://oauth.vk.com/blank.html'
+    AUTHORISE_URI = 'https://oauth.vk.com/authorize'
+    LOGIN_URI = 'https://m.vk.com/login'
 
-    def __init__(self, app_id=None, user_login='', user_password='', scope='', **kwargs):
+    def __init__(self, app_id=None, user_login='', user_password='', **kwargs):
 
         logger.debug('OAuthMixin.__init__(app_id=%(app_id)r, user_login=%(user_login)r, user_password=%(user_password)r, **kwargs=%(kwargs)s)',
             {'app_id': app_id, 'user_login': user_login, 'user_password': user_password, 'kwargs': kwargs})
@@ -25,7 +27,6 @@ class OAuthMixin(object):
         self.app_id = app_id
         self.user_login = user_login
         self.user_password = user_password
-        self.scope = scope
 
     def get_access_token(self):
         """
@@ -57,7 +58,7 @@ class OAuthMixin(object):
             'pass': self.user_password,
         }
 
-        logger.debug('POST %s', login_form_action[0])
+        logger.debug('POST %s data %s', login_form_action[0], login_form_data)
         response = auth_session.post(login_form_action[0], login_form_data)
         logger.debug('%s - %s', login_form_action[0], response.status_code)
 
@@ -67,7 +68,7 @@ class OAuthMixin(object):
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
             pass
         elif 'sid=' in response.url:
-            self.auth_captcha_is_needed(response.text, auth_session)
+            self.auth_captcha_is_needed(response.content, auth_session)
         elif 'act=authcheck' in response.url:
             self.auth_code_is_needed(response.text, auth_session)
         elif 'security_check' in response.url:
@@ -82,15 +83,13 @@ class OAuthMixin(object):
             'scope': self.scope,
             'display': 'mobile',
         }
-        logger.debug('POST https://oauth.vk.com/authorize %s', oauth_data)
-        response = auth_session.post('https://oauth.vk.com/authorize', oauth_data)
-        logger.debug('%s - %s', response.request.url, response.status_code)
+        logger.debug('POST %s data %s', self.AUTHORISE_URI, oauth_data)
+        response = auth_session.post(self.AUTHORISE_URI, oauth_data)
+        logger.debug('%s - %s', self.AUTHORISE_URI, response.status_code)
         logger.info('OAuth URL: %s %s', response.request.url, oauth_data)
 
         if 'access_token' not in response.url:
             logger.info('Geting permissions')
-            with open('2auth.html', 'w') as f:
-                f.write(response.text)
             form_action = re.findall(r'<form method="post" action="(.+?)">', response.text)
             logger.debug('form_action %s', form_action)
             if form_action:
@@ -118,14 +117,19 @@ class OAuthMixin(object):
         if 'access_token' in token_dict:
             self.access_token = token_dict['access_token']
             self.access_token_expires_in = token_dict['expires_in']
-            logger.info('Success!')
+            logger.info('Success! expires_in: %s\ntoken: %s', self.access_token_expires_in, self.access_token)
             return self.access_token, self.access_token_expires_in
         else:
             raise VkAuthorizationError('OAuth2 authorization error')
 
-    def auth_code_is_needed(self, content, session):
+    def auth_code_is_needed(self, text, session):
         logger.info('You use 2 factors authorization. Enter auth code please')
-        auth_hash = re.search(r'action="/login\?act=authcheck_code&hash=([0-9a-z_]+)"', content).group(1)
+        auth_hash = re.findall(r'action="/login\?act=authcheck_code&hash=([0-9a-z_]+)"', text)
+        logger.debug('auth_hash %s', auth_hash)
+        if not auth_hash:
+            raise VkAuthorizationError('cannot find hash, maybe vk.com changed login flow')
+
+        auth_hash = auth_hash[0][1]
         logger.debug('hash %s', auth_hash)
         code_data = {
             'code': self.get_auth_code(),
@@ -136,16 +140,28 @@ class OAuthMixin(object):
             'act': 'authcheck_code',
             'hash': auth_hash,
         }
-        logger.debug('POST https://m.vk.com/login %s', params)
-        response = session.post('https://m.vk.com/login', params=params, data=code_data)
-        logger.debug('%s - %s', response.request.url, response.status_code)
+        logger.debug('POST %s %s data %s', self.LOGIN_URI, params, code_data)
+        response = session.post(self.LOGIN_URI, params=params, data=code_data)
+        logger.debug('%s - %s', self.LOGIN_URI, response.status_code)
     
     def get_auth_code(self):
         # Reload this in child!
-        return input("get 2-auth code: ")
+        return raw_input("get 2-auth code: ")
 
     def phone_number_is_needed(self, content, session):
         logger.debug('phone number is needed')
 
     def auth_captcha_is_needed(self, content, session):
-        logger.debug('captcha is needed')
+        #ogger.debug('captcha is needed')
+        pass
+
+'''def captcha_is_needed(self, error_data, method_name, **method_kwargs):
+-        captcha_sid = error_data.get('captcha_sid')
+-        captcha_img = error_data.get('captcha_img')
+-
+-        print('Captcha URL: {}'.format(captcha_img))
+-        captcha_key = raw_input('Enter captcha text: ')
+-
+-        method_kwargs['captcha_sid'] = captcha_sid
+-        method_kwargs['captcha_key'] = captcha_key
+-        return self(method_name, **method_kwargs)'''

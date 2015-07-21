@@ -6,6 +6,7 @@ LOGGING_CONFIG = {
     'version': 1,
     'loggers': {
         'vk': {
+            'level': 'INFO',
             'handlers': ['vk-stdout'],
             'propagate': False,
             },
