@@ -21,7 +21,7 @@ class OAuthMixin(object):
     def __init__(self, app_id=None, user_login='', user_password='', **kwargs):
 
         logger.debug('OAuthMixin.__init__(app_id=%(app_id)r, user_login=%(user_login)r, user_password=%(user_password)r, **kwargs=%(kwargs)s)',
-            {'app_id': app_id, 'user_login': user_login, 'user_password': user_password, 'kwargs': kwargs})
+            dict(app_id=app_id, user_login=user_login, user_password=user_password, kwargs=kwargs))
 
         super(OAuthMixin, self).__init__(**kwargs)
 
@@ -195,4 +195,3 @@ class OAuthMixin(object):
         Reload this in child
         """
         return raw_input('Enter captcha text: ')
-

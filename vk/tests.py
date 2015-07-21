@@ -6,7 +6,7 @@ import time
 
 import unittest
 import vk
-from vk.utils import HandyList, make_handy, HandyDict
+
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -39,26 +39,7 @@ class VkTestCase(unittest.TestCase):
 
     def test_get_profiles_via_token(self):
         profiles = self.vk_api.users.get(user_id=1)
-        profiles = make_handy(profiles)
-        self.assertEqual(profiles.first.last_name, u'Дуров')
-
-    def test_get_profiles_via_token_2(self):
-        profiles = self.vk_api.users.get(user_ids=[1, 2, 3, 4, 5])
-        self.assertEqual(profiles[-1]['last_name'], u'Перекопский')
-
-
-class HandyContainersTestCase(unittest.TestCase):
-
-    def test_list(self):
-        handy_list = make_handy([1, 2, 3])
-        self.assertIsInstance(handy_list, HandyList)
-        self.assertEqual(handy_list.first, 1)
-
-
-    def test_handy_dict(self):
-        handy_dict = make_handy({'key1': 'val1', 'key2': 'val2'})
-        self.assertIsInstance(handy_dict, HandyDict)
-        self.assertEqual(handy_dict.key1, 'val1')
+        self.assertEqual(profiles[0]['last_name'], u'Дуров')
 
 
 if __name__ == '__main__':

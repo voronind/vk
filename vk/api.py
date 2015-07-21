@@ -21,7 +21,8 @@ class APISession(object):
 
     def __init__(self, access_token=None, scope='offline', default_timeout=10, api_version='5.28'):
 
-        logger.debug('API.__init__(...)')
+        logger.debug('API.__init__(access_token=%(access_token)r, scope=%(scope)r, default_timeout=%(default_timeout)r, api_version=%(api_version)r)',
+            dict(access_token=access_token, scope=scope, default_timeout=default_timeout, api_version=api_version))
 
         self.scope = scope
         self.api_version = api_version
@@ -29,9 +30,9 @@ class APISession(object):
         self.default_timeout = default_timeout
         self.access_token = access_token
 
-        self.session = requests.Session()
-        self.session.headers['Accept'] = 'application/json'
-        self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        self.requests_session = requests.Session()
+        self.requests_session.headers['Accept'] = 'application/json'
+        self.requests_session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
     def drop_access_token(self):
         logger.info('Access token was dropped')
@@ -47,10 +48,9 @@ class APISession(object):
 
     def get_access_token(self):
         """
-        Overrideable
+        Get access token. Use OAuthAPI class for
         """
-        logger.debug('Do nothing for getting access token')
-        pass
+        logger.debug('Do nothing to get access token')
 
     def __getattr__(self, method_name):
         return APIMethod(self, method_name)
@@ -101,7 +101,7 @@ class APISession(object):
         url = 'https://api.vk.com/method/' + method_name
 
         logger.info('Make request %s, %s', url, params)
-        response = self.session.post(url, params, timeout=timeout or self.default_timeout)
+        response = self.requests_session.post(url, params, timeout=timeout or self.default_timeout)
         return response
 
     def captcha_is_needed(self, error_data, method_name, **method_kwargs):
