@@ -21,7 +21,8 @@ class APISession(object):
 
     def __init__(self, access_token=None, scope='offline', default_timeout=10, api_version='5.28'):
 
-        logger.debug('API.__init__(...)')
+        logger.debug('API.__init__(access_token=%(access_token)r, scope=%(scope)r, default_timeout=%(default_timeout)r, api_version=%(api_version)r)',
+            dict(access_token=access_token, scope=scope, default_timeout=default_timeout, api_version=api_version))
 
         self.scope = scope
         self.api_version = api_version
