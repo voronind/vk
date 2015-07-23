@@ -1,3 +1,4 @@
+# coding=utf8
 
 import re
 import logging
@@ -125,6 +126,18 @@ class OAuthMixin(object):
             raise VkAuthorizationError('OAuth2 authorization error')
 
     def auth_code_is_needed(self, text, session):
+        raise VkAuthorizationError('2 factor authorization error')
+
+    def phone_number_is_needed(self, content, session):
+        raise VkAuthorizationError('phone number is needed')
+
+    def auth_captcha_is_needed(self, response, login_form_data, session):
+        raise VkAuthorizationError('Captcha is needed')
+
+
+class InteractiveMixin(OAuthMixin):
+
+    def auth_code_is_needed(self, text, session):
         logger.info('You use 2 factors authorization. Enter auth code please')
         auth_hash = re.findall(r'action="/login\?act=authcheck_code&hash=([0-9a-z_]+)"', text)
         logger.debug('auth_hash %s', auth_hash)
@@ -145,12 +158,6 @@ class OAuthMixin(object):
         logger.debug('POST %s %s data %s', self.LOGIN_URI, params, code_data)
         response = session.post(self.LOGIN_URI, params=params, data=code_data)
         logger.debug('%s - %s', self.LOGIN_URI, response.status_code)
-    
-    def get_auth_code(self):
-        """
-        Reload this in child
-        """
-        return raw_input("get 2-auth code: ")
 
     def phone_number_is_needed(self, content, session):
         logger.debug('phone number is needed')
@@ -182,7 +189,7 @@ class OAuthMixin(object):
 
         logger.debug('Cookies %s', session.cookies)
         if 'remixsid' not in session.cookies and 'remixsid6' not in session.cookies:
-            raise VkAuthorizationError('Authorization error')
+            raise VkAuthorizationError('Authorization error (Bad password or captcha key)')
 
     def show_captcha(self, url, session):
         """
@@ -195,3 +202,9 @@ class OAuthMixin(object):
         Reload this in child
         """
         return raw_input('Enter captcha text: ')
+
+    def get_auth_code(self):
+        """
+        Reload this in child
+        """
+        return raw_input("get 2-auth code: ")
