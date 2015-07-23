@@ -125,24 +125,15 @@ class OAuthMixin(object):
         else:
             raise VkAuthorizationError('OAuth2 authorization error')
 
-    def auth_code_is_needed(self, text, session):
-        raise VkAuthorizationError('2 factor authorization error')
-
     def phone_number_is_needed(self, content, session):
-        raise VkAuthorizationError('phone number is needed')
-
-    def auth_captcha_is_needed(self, response, login_form_data, session):
-        raise VkAuthorizationError('Captcha is needed')
-
-
-class InteractiveMixin(OAuthMixin):
+        raise VkAuthorizationError('Phone number is needed')
 
     def auth_code_is_needed(self, text, session):
         logger.info('You use 2 factors authorization. Enter auth code please')
         auth_hash = re.findall(r'action="/login\?act=authcheck_code&hash=([0-9a-z_]+)"', text)
         logger.debug('auth_hash %s', auth_hash)
         if not auth_hash:
-            raise VkAuthorizationError('cannot find hash, maybe vk.com changed login flow')
+            raise VkAuthorizationError('Cannot find hash, maybe vk.com changed login flow')
 
         auth_hash = auth_hash[0][1]
         logger.debug('hash %s', auth_hash)
@@ -160,7 +151,7 @@ class InteractiveMixin(OAuthMixin):
         logger.debug('%s - %s', self.LOGIN_URI, response.status_code)
 
     def phone_number_is_needed(self, content, session):
-        logger.debug('phone number is needed')
+        logger.debug('Phone number is needed')
 
     def auth_captcha_is_needed(self, response, login_form_data, session):
         logger.info('Captcha is needed')
@@ -190,6 +181,27 @@ class InteractiveMixin(OAuthMixin):
         logger.debug('Cookies %s', session.cookies)
         if 'remixsid' not in session.cookies and 'remixsid6' not in session.cookies:
             raise VkAuthorizationError('Authorization error (Bad password or captcha key)')
+
+    def show_captcha(self, url, session):
+        """
+        Reload this in child
+        """
+        raise VkAuthorizationError('Captcha is needed')
+
+    def get_captcha_key(self):
+        """
+        Reload this in child
+        """
+        raise VkAuthorizationError('Captcha is needed')
+
+    def get_auth_code(self):
+        """
+        Reload this in child
+        """
+        raise VkAuthorizationError("You use 2factor authorization")
+
+
+class InteractiveMixin(OAuthMixin):
 
     def show_captcha(self, url, session):
         """
