@@ -169,10 +169,9 @@ class OAuthMixin(object):
 
         captcha_url = '%s?s=%s&sid=%s' % (self.CAPTCHA_URI, response_url_dict['s'], response_url_dict['sid'])
         logger.debug('Captcha url %s', captcha_url)
-        self.show_captcha(captcha_url, session)
 
         login_form_data['captcha_sid'] = response_url_dict['sid']
-        login_form_data['captcha_key'] = self.get_captcha_key()
+        login_form_data['captcha_key'] = self.get_captcha_key(captcha_url)
 
         logger.debug('POST %s data %s', form_url[0], login_form_data)
         response = session.post(form_url[0], login_form_data)
@@ -182,13 +181,7 @@ class OAuthMixin(object):
         if 'remixsid' not in session.cookies and 'remixsid6' not in session.cookies:
             raise VkAuthorizationError('Authorization error (Bad password or captcha key)')
 
-    def show_captcha(self, url, session):
-        """
-        Reload this in child
-        """
-        raise VkAuthorizationError('Captcha is needed')
-
-    def get_captcha_key(self):
+    def get_captcha_key(self, url):
         """
         Reload this in child
         """
@@ -203,17 +196,12 @@ class OAuthMixin(object):
 
 class InteractiveMixin(OAuthMixin):
 
-    def show_captcha(self, url, session):
+    def get_captcha_key(self, url):
         """
         Reload this in child
         """
         print('Open captcha url:', url)
-
-    def get_captcha_key(self):
-        """
-        Reload this in child
-        """
-        return raw_input('Enter captcha text: ')
+        return raw_input('Enter captcha key: ')
 
     def get_auth_code(self):
         """
