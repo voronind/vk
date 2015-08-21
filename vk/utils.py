@@ -8,7 +8,7 @@ STRING_TYPES = (str, bytes, bytearray)
 try:
     # Python 2
     from urllib import urlencode
-    from urlparse import urlparse, parse
+    from urlparse import urlparse, parse_qsl
 except ImportError:
     # Python 3
     from urllib.parse import urlparse, parse_qsl, urlencode
