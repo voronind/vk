@@ -7,10 +7,11 @@ STRING_TYPES = (str, bytes, bytearray)
 
 try:
     # Python 2
-    from urlparse import urlparse, parse_qsl
+    from urllib import urlencode
+    from urlparse import urlparse, parse
 except ImportError:
     # Python 3
-    from urllib.parse import urlparse, parse_qsl
+    from urllib.parse import urlparse, parse_qsl, urlencode
 
 
 try:
