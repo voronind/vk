@@ -10,14 +10,17 @@ import requests
 from vk.logs import LOGGING_CONFIG
 from vk.utils import stringify_values, json_iter_parse
 from vk.exceptions import VkAuthorizationError, VkAPIMethodError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
-from vk.mixins import OAuthMixin
+from vk.mixins import AuthMixin, InteractiveMixin
+
+
+VERSION = '2.0rc2'
 
 
 logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger('vk')
 
 
-class APISession(object):
+class API(object):
 
     def __init__(self, access_token=None, scope='offline', default_timeout=10, api_version='5.28'):
 
@@ -70,7 +73,7 @@ class APISession(object):
             if 'error' in data:
                 error_data = data['error']
                 if error_data['error_code'] == CAPTCHA_IS_NEEDED:
-                    return self.captcha_is_needed(error_data, method_name, **method_kwargs)
+                    return self.on_captcha_is_needed(error_data, method_name, **method_kwargs)
 
                 error_codes.append(error_data['error_code'])
                 errors.append(error_data)
@@ -104,7 +107,7 @@ class APISession(object):
         response = self.requests_session.post(url, params, timeout=timeout or self.default_timeout)
         return response
 
-    def captcha_is_needed(self, error_data, method_name, **method_kwargs):
+    def on_captcha_is_needed(self, error_data, method_name, **method_kwargs):
         """
         Default behavior on CAPTCHA is to raise exception
         Reload this in child
@@ -130,8 +133,9 @@ class APISession(object):
         Default behavior on PHONE NUMBER is to raise exception
         Reload this in child
         """
+        logger.error('Authorization error (phone number is needed)')
         raise VkAuthorizationError('Authorization error (phone number is needed)')
-    
+
 
 class APIMethod(object):
     __slots__ = ['_api_session', '_method_name']
@@ -147,8 +151,13 @@ class APIMethod(object):
         return self._api_session(self._method_name, **method_kwargs)
 
 
-class OAuthAPI(OAuthMixin, APISession):
+class AuthAPI(AuthMixin, API):
     pass
 
 
-API = APISession
+class InteractiveAPI(InteractiveMixin, API):
+    pass
+
+
+class InteractiveAuthAPI(InteractiveMixin, AuthAPI):
+    pass

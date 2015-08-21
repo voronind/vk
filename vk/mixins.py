@@ -6,25 +6,23 @@ import logging
 import requests
 
 from vk.exceptions import VkAuthorizationError
-from vk.utils import urlparse, parse_qsl, raw_input, urlencode
+from vk.utils import urlparse, parse_qsl, raw_input
 
 
 logger = logging.getLogger('vk')
 
 
-class OAuthMixin(object):
+class AuthMixin(object):
     LOGIN_URL = 'https://m.vk.com'
     REDIRECT_URI = 'https://oauth.vk.com/blank.html'
     AUTHORISE_URI = 'https://oauth.vk.com/authorize'
-    LOGIN_URI = 'https://m.vk.com/login'
     CAPTCHA_URI = 'https://m.vk.com/captcha.php'
 
     def __init__(self, app_id=None, user_login='', user_password='', **kwargs):
-
-        logger.debug('OAuthMixin.__init__(app_id=%(app_id)r, user_login=%(user_login)r, user_password=%(user_password)r, **kwargs=%(kwargs)s)',
+        logger.debug('AuthMixin.__init__(app_id=%(app_id)r, user_login=%(user_login)r, user_password=%(user_password)r, **kwargs=%(kwargs)s)',
             dict(app_id=app_id, user_login=user_login, user_password=user_password, kwargs=kwargs))
 
-        super(OAuthMixin, self).__init__(**kwargs)
+        super(AuthMixin, self).__init__(**kwargs)
 
         self.app_id = app_id
         self.user_login = user_login
@@ -125,9 +123,6 @@ class OAuthMixin(object):
         else:
             raise VkAuthorizationError('OAuth2 authorization error')
 
-    def phone_number_is_needed(self, content, session):
-        raise VkAuthorizationError('Phone number is needed')
-
     def auth_code_is_needed(self, text, session):
         logger.info('You use 2 factors authorization. Enter auth code please')
         auth_hash = re.findall(r'action="/login\?act=authcheck_code&hash=([0-9a-z_]+)"', text)
@@ -146,12 +141,11 @@ class OAuthMixin(object):
             'act': 'authcheck_code',
             'hash': auth_hash,
         }
-        logger.debug('POST %s %s data %s', self.LOGIN_URI, params, code_data)
-        response = session.post(self.LOGIN_URI, params=params, data=code_data)
-        logger.debug('%s - %s', self.LOGIN_URI, response.status_code)
-
-    def phone_number_is_needed(self, content, session):
-        logger.debug('Phone number is needed')
+        # todo Calc login_url from form
+        login_url = self.LOGIN_URL
+        logger.debug('POST %s %s data %s', login_url, params, code_data)
+        response = session.post(login_url, params=params, data=code_data)
+        logger.debug('%s - %s', login_url, response.status_code)
 
     def auth_captcha_is_needed(self, response, login_form_data, session):
         logger.info('Captcha is needed')
@@ -171,7 +165,7 @@ class OAuthMixin(object):
         logger.debug('Captcha url %s', captcha_url)
 
         login_form_data['captcha_sid'] = response_url_dict['sid']
-        login_form_data['captcha_key'] = self.get_captcha_key(captcha_url)
+        login_form_data['captcha_key'] = self.on_captcha_is_needed(captcha_url)
 
         logger.debug('POST %s data %s', form_url[0], login_form_data)
         response = session.post(form_url[0], login_form_data)
@@ -181,30 +175,20 @@ class OAuthMixin(object):
         if 'remixsid' not in session.cookies and 'remixsid6' not in session.cookies:
             raise VkAuthorizationError('Authorization error (Bad password or captcha key)')
 
-    def get_captcha_key(self, url):
-        """
-        Reload this in child
-        """
-        raise VkAuthorizationError('Captcha is needed')
 
-    def get_auth_code(self):
-        """
-        Reload this in child
-        """
-        raise VkAuthorizationError("You use 2factor authorization")
+class InteractiveMixin(object):
 
-
-class InteractiveMixin(OAuthMixin):
-
-    def get_captcha_key(self, url):
+    def on_captcha_is_needed(self, url):
         """
-        Reload this in child
+        Read CAPTCHA key from shell
         """
         print('Open captcha url:', url)
-        return raw_input('Enter captcha key: ')
+        captcha_key = raw_input('Enter captcha key: ')
+        return captcha_key
 
     def get_auth_code(self):
         """
-        Reload this in child
+        Read Auth code from shell
         """
-        return raw_input("get 2-auth code: ")
+        auth_check_code = raw_input('Enter auth check code: ')
+        return auth_check_code

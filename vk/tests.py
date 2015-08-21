@@ -1,12 +1,14 @@
 # coding=utf8
 
+from __future__ import absolute_import
+
 import os
 import sys
 import time
 
 import unittest
-import vk
 
+import .api
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -16,13 +18,13 @@ APP_ID = ''  # aka API/Client id
 USER_LOGIN = ''  # user email or phone number
 USER_PASSWORD = ''
 
-from test_props import APP_ID, USER_LOGIN, USER_PASSWORD
+# from test_props import APP_ID, USER_LOGIN, USER_PASSWORD
 
 
 class VkTestCase(unittest.TestCase):
 
     def setUp(self):
-        self.vk_api = vk.API(APP_ID, USER_LOGIN, USER_PASSWORD)
+        self.vk_api = vk.AuthAPI(app_id=APP_ID, user_login=USER_LOGIN, user_password=USER_PASSWORD)
         self.vk_token_api = vk.API(access_token=self.vk_api.access_token)
 
     def test_get_server_time(self):
