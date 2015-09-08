@@ -4,15 +4,15 @@ AUTHORIZATION_FAILED = 5  # Invalid access token
 CAPTCHA_IS_NEEDED = 14
 
 
-class VkError(Exception):
+class VkException(Exception):
     pass
 
 
-class VkAuthorizationError(VkError):
+class VkAuthError(VkException):
     pass
 
 
-class VkAPIMethodError(VkError):
+class VkAPIMethodError(VkException):
     __slots__ = ['error', 'code', 'message', 'request_params', 'redirect_uri']
 
     def __init__(self, error):

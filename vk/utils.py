@@ -36,10 +36,18 @@ def json_iter_parse(response_text):
         yield obj
 
 
-def stringify_values(method_kwargs):
-    stringified_method_kwargs = {}
-    for key, value in method_kwargs.items():
-        if not isinstance(value, STRING_TYPES) and isinstance(value, Iterable):
+def stringify_values(dictionary):
+    stringified_values_dict = {}
+    for key, value in dictionary.items():
+        if isinstance(value, Iterable) and not isinstance(value, STRING_TYPES):
             value = ','.join(map(str, value))
-        stringified_method_kwargs[key] = value
-    return stringified_method_kwargs
+        stringified_values_dict[key] = value
+    return stringified_values_dict
+
+
+def parse_url_query(url):
+    parsed_url = urlparse(url)
+    url_query = parse_qsl(parsed_url.fragment)
+    # login_response_url_query can have multiple key
+    url_query = dict(url_query)
+    return url_query

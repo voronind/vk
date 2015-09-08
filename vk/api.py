@@ -9,11 +9,11 @@ import requests
 
 from vk.logs import LOGGING_CONFIG
 from vk.utils import stringify_values, json_iter_parse
-from vk.exceptions import VkAuthorizationError, VkAPIMethodError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
+from vk.exceptions import VkAuthError, VkAPIMethodError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
 from vk.mixins import AuthMixin, InteractiveMixin
 
 
-VERSION = '2.0rc2'
+VERSION = '2.0a3'
 
 
 logging.config.dictConfig(LOGGING_CONFIG)
@@ -21,6 +21,7 @@ logger = logging.getLogger('vk')
 
 
 class API(object):
+    API_URL = 'https://api.vk.com/method/'
 
     def __init__(self, access_token=None, scope='offline', default_timeout=10, api_version='5.28'):
 
@@ -32,6 +33,7 @@ class API(object):
 
         self.default_timeout = default_timeout
         self.access_token = access_token
+        self.access_token_is_needed = False
 
         self.requests_session = requests.Session()
         self.requests_session.headers['Accept'] = 'application/json'
@@ -40,32 +42,60 @@ class API(object):
     def drop_access_token(self):
         logger.info('Access token was dropped')
         self.access_token = None
+        self.access_token_is_needed = True
 
-    def check_access_token(self):
-        logger.debug('Check that we have access token')
-        if self.access_token:
-            logger.debug('access_token=%r', self.access_token)
-        else:
-            logger.debug('No access token')
-            self.get_access_token()
+    @property
+    def access_token(self):
+        logger.debug('Check that we need new access token')
+        # if not self._access_token and self.access_token_is_needed:
+        if self.access_token_is_needed or self.access_token_was_expired:
+            logger.debug('Try to get access token')
+            self._access_token, self._access_token_expires_in = self.get_access_token()
+            logger.info('Got new access token')
+        logger.debug('access_token = %r, expires in %s', self.censored_access_token, self._access_token_expires_in)
+        return self._access_token
+
+    @property
+    def access_token_was_expired(self):
+        return False
+
+    @access_token.setter
+    def access_token(self, value):
+        self._access_token = value
+        self._access_token_expires_in = None
+
+    @property
+    def censored_access_token(self):
+        if self._access_token:
+            return '{}***{}'.format(self._access_token[:4], self._access_token[-4:])
+
+    def get_user_login(self):
+        logger.debug('Do nothing to get user login')
 
     def get_access_token(self):
         """
-        Get access token. Use OAuthAPI class for
+        Dummy method
         """
-        logger.debug('Do nothing to get access token')
+        return self._access_token, self._access_token_expires_in
 
     def __getattr__(self, method_name):
         return APIMethod(self, method_name)
 
+    # def __call__new(self, method_name, **method_kwargs):
+    #     method = MethodRequest(method_name, method_kwargs)
+    #     method_response = self.make_request(method)
+    #     return
+
     def __call__(self, method_name, **method_kwargs):
 
-        self.check_access_token()
+        # self.check_access_token()
+
+        # todo Create MethodObject that keeps params to recall API method more easily
 
         response = self.method_request(method_name, **method_kwargs)
         response.raise_for_status()
 
-        # there are may be 2 dicts in 1 json
+        # there are may be 2 dicts in one JSON
         # for example: {'error': ...}{'response': ...}
         errors = []
         error_codes = []
@@ -80,7 +110,7 @@ class API(object):
 
             if 'response' in data:
                 for error in errors:
-                    warnings.warn(str(error))
+                    logger.warning(str(error))
 
                 return data['response']
             
@@ -101,8 +131,7 @@ class API(object):
 
         method_kwargs = stringify_values(method_kwargs)
         params.update(method_kwargs)
-        url = 'https://api.vk.com/method/' + method_name
-
+        url = self.API_URL + method_name
         logger.info('Make request %s, %s', url, params)
         response = self.requests_session.post(url, params, timeout=timeout or self.default_timeout)
         return response
@@ -119,14 +148,14 @@ class API(object):
         Default behavior on 2-AUTH CODE is to raise exception
         Reload this in child
         """           
-        raise VkAuthorizationError('Authorization error (2-factor code is needed)')
+        raise VkAuthError('Authorization error (2-factor code is needed)')
     
     def auth_captcha_is_needed(self, content, session):
         """
         Default behavior on CAPTCHA is to raise exception
         Reload this in child
         """              
-        raise VkAuthorizationError('Authorization error (captcha)')
+        raise VkAuthError('Authorization error (captcha)')
     
     def phone_number_is_needed(self, content, session):
         """
@@ -134,7 +163,7 @@ class API(object):
         Reload this in child
         """
         logger.error('Authorization error (phone number is needed)')
-        raise VkAuthorizationError('Authorization error (phone number is needed)')
+        raise VkAuthError('Authorization error (phone number is needed)')
 
 
 class APIMethod(object):

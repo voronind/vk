@@ -5,8 +5,8 @@ import logging
 
 import requests
 
-from vk.exceptions import VkAuthorizationError
-from vk.utils import urlparse, parse_qsl, raw_input
+from vk.exceptions import VkAuthError
+from vk.utils import urlparse, parse_qsl, raw_input, parse_url_query
 
 
 logger = logging.getLogger('vk')
@@ -28,56 +28,99 @@ class AuthMixin(object):
         self.user_login = user_login
         self.user_password = user_password
 
+    @property
+    def user_login(self):
+        if not self._user_login:
+            self._user_login = self.get_user_login()
+        return self._user_login
+
+    @user_login.setter
+    def user_login(self, value):
+        self._user_login = value
+
+    def get_user_login(self):
+        return self._user_login
+
+    @property
+    def user_password(self):
+        if not self._user_password:
+            self._user_password = self.get_user_password()
+        return self._user_password
+
+    @user_password.setter
+    def user_password(self, value):
+        self._user_password = value
+
+    def get_user_password(self):
+        return self._user_password
+    
     def get_access_token(self):
         """
-        Get access token using user_login and user_password
+        Get access token using app id and user login and password.
         """
-        logger.info('Try to get access token via OAuth')
+        logger.info('AuthMixin.get_access_token()')
 
-        if self.user_login and not self.user_password:
-            # Need user password
-            pass
+        self.auth_session = requests.Session()
 
-        if not self.user_login and self.user_password:
-            # Need user login
-            pass
+        self.login()
+        token_dict = self.oauth2_authorization()
+        del self.auth_session
 
-        auth_session = requests.Session()
+        if 'access_token' in token_dict:
+            return token_dict['access_token'], token_dict['expires_in']
+        else:
+            raise VkAuthError('OAuth2 authorization error')
 
+    def get_login_form_action(self):
         logger.debug('GET %s', self.LOGIN_URL)
-        login_form_response = auth_session.get(self.LOGIN_URL)
-        logger.debug("%s - %s", self.LOGIN_URL, login_form_response.status_code)
+        login_response = self.auth_session.get(self.LOGIN_URL)
+        logger.debug('%s - %s', self.LOGIN_URL, login_response.status_code)
 
-        login_form_action = re.findall(r'<form ?.* action="(.+)"', login_form_response.text)
+        login_form_action = re.findall(r'<form ?.* action="(.+)"', login_response.text)
         if not login_form_action:
-            raise VkAuthorizationError('vk.com changed login flow')
+            raise VkAuthError('VK changed login flow')
+        return login_form_action[0]
 
-        # Login
+    def get_login_response(self, login_form_action, login_form_data):
+        logger.debug('POST %s, data: %s', login_form_action, login_form_data)
+        login_response = self.auth_session.post(login_form_action, login_form_data)
+        logger.debug('%s - %s', login_form_action, login_response.status_code)
+        return login_response
+
+    def login(self):
+        """
+        Login
+        """
+
+        login_form_action = self.get_login_form_action()
         login_form_data = {
             'email': self.user_login,
             'pass': self.user_password,
         }
+        login_response = self.get_login_response(login_form_action, login_form_data)
 
-        logger.debug('POST %s data %s', login_form_action[0], login_form_data)
-        response = auth_session.post(login_form_action[0], login_form_data)
-        logger.debug('%s - %s', login_form_action[0], response.status_code)
+        logger.debug('Cookies %s', self.auth_session.cookies)
+        logger.info('Login response url %s', login_response.url)
 
-        logger.debug('Cookies %s', auth_session.cookies)
-        logger.info('Login response url %s', response.url)
+        login_response_url_query = parse_url_query(login_response.url)
 
-        captcha = dict()
-        if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
+        if 'remixsid' in self.auth_session.cookies or 'remixsid6' in self.auth_session.cookies:
             pass
-        elif 'sid=' in response.url:
-            self.auth_captcha_is_needed(response, login_form_data, auth_session)
-        elif 'act=authcheck' in response.url:
-            self.auth_code_is_needed(response.text, auth_session)
-        elif 'security_check' in response.url:
-            self.phone_number_is_needed(response.text, auth_session)
+        elif 'sid' in login_response_url_query:
+            self.auth_captcha_is_needed(login_response, login_form_data)
+        elif login_response_url_query.get('act') == 'authcheck':
+            self.auth_code_is_needed(login_response.text)
+        elif 'security_check' in login_response_url_query:
+            self.phone_number_is_needed(login_response.text)
         else:
-            raise VkAuthorizationError('Authorization error (bad password)')
+            raise VkAuthError('Authorization error (incorrect password)')
 
-        # OAuth2
+    def oauth2_authorization(self):
+        """
+        OAuth2
+        """
+        auth_session = self.auth_session
+
         oauth_data = {
             'response_type': 'token',
             'client_id': self.app_id,
@@ -106,7 +149,7 @@ class AuthMixin(object):
                         json_data['error_description']
                     )
                 auth_session.close()
-                raise VkAuthorizationError(error_message)
+                raise VkAuthError(error_message)
             logger.info('Permissions obtained')
 
         auth_session.close()
@@ -115,25 +158,19 @@ class AuthMixin(object):
         logger.debug('Parsed URL: %s', parsed_url)
 
         token_dict = dict(parse_qsl(parsed_url.fragment))
-        if 'access_token' in token_dict:
-            self.access_token = token_dict['access_token']
-            self.access_token_expires_in = token_dict['expires_in']
-            logger.info('Success! expires_in: %s\ntoken: %s', self.access_token_expires_in, self.access_token)
-            return self.access_token, self.access_token_expires_in
-        else:
-            raise VkAuthorizationError('OAuth2 authorization error')
+        return token_dict
 
     def auth_code_is_needed(self, text, session):
         logger.info('You use 2 factors authorization. Enter auth code please')
         auth_hash = re.findall(r'action="/login\?act=authcheck_code&hash=([0-9a-z_]+)"', text)
         logger.debug('auth_hash %s', auth_hash)
         if not auth_hash:
-            raise VkAuthorizationError('Cannot find hash, maybe vk.com changed login flow')
+            raise VkAuthError('Cannot find hash, maybe vk.com changed login flow')
 
         auth_hash = auth_hash[0][1]
         logger.debug('hash %s', auth_hash)
         code_data = {
-            'code': self.get_auth_code(),
+            'code': self.get_auth_check_code(),
             '_ajax': '1',
             'remember': '1'
         }
@@ -159,7 +196,7 @@ class AuthMixin(object):
         form_url = re.findall(r'<form method="post" action="(.+)" novalidate>', response.text)
         logger.debug('form_url %s', form_url)
         if not form_url:
-            raise VkAuthorizationError('Cannot find form url')
+            raise VkAuthError('Cannot find form url')
 
         captcha_url = '%s?s=%s&sid=%s' % (self.CAPTCHA_URI, response_url_dict['s'], response_url_dict['sid'])
         logger.debug('Captcha url %s', captcha_url)
@@ -173,10 +210,29 @@ class AuthMixin(object):
 
         logger.debug('Cookies %s', session.cookies)
         if 'remixsid' not in session.cookies and 'remixsid6' not in session.cookies:
-            raise VkAuthorizationError('Authorization error (Bad password or captcha key)')
+            raise VkAuthError('Authorization error (Bad password or captcha key)')
+
+    def phone_number_is_needed(self, text, auth_session):
+        raise VkAuthError('Phone number is needed')
 
 
 class InteractiveMixin(object):
+    def get_user_login(self):
+        user_login = raw_input('VK user login: ')
+        return user_login.strip()
+
+    def get_user_password(self):
+        import getpass
+        user_password = getpass.getpass('VK user password: ')
+        return user_password
+
+    def get_access_token(self):
+        logger.debug('InteractiveMixin.get_access_token()')
+        access_token, access_token_expires_in = super(InteractiveMixin, self).get_access_token()
+        if not access_token:
+            access_token = raw_input('VK API access token: ')
+            access_token_expires_in = None
+        return access_token, access_token_expires_in
 
     def on_captcha_is_needed(self, url):
         """
@@ -186,9 +242,9 @@ class InteractiveMixin(object):
         captcha_key = raw_input('Enter captcha key: ')
         return captcha_key
 
-    def get_auth_code(self):
+    def get_auth_check_code(self):
         """
         Read Auth code from shell
         """
-        auth_check_code = raw_input('Enter auth check code: ')
+        auth_check_code = raw_input('Auth check code: ')
         return auth_check_code
