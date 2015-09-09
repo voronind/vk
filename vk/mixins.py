@@ -6,7 +6,7 @@ import logging
 import requests
 
 from vk.exceptions import VkAuthError
-from vk.utils import urlparse, parse_qsl, raw_input, parse_url_query
+from vk.utils import urlparse, parse_qsl, raw_input, get_url_query, LoggingSession, get_form_action
 
 
 logger = logging.getLogger('vk')
@@ -14,8 +14,8 @@ logger = logging.getLogger('vk')
 
 class AuthMixin(object):
     LOGIN_URL = 'https://m.vk.com'
-    REDIRECT_URI = 'https://oauth.vk.com/blank.html'
-    AUTHORISE_URI = 'https://oauth.vk.com/authorize'
+    # REDIRECT_URI = 'https://oauth.vk.com/blank.html'
+    AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
     CAPTCHA_URI = 'https://m.vk.com/captcha.php'
 
     def __init__(self, app_id=None, user_login='', user_password='', **kwargs):
@@ -60,58 +60,45 @@ class AuthMixin(object):
         """
         logger.info('AuthMixin.get_access_token()')
 
-        self.auth_session = requests.Session()
+        auth_session = LoggingSession()
+        with auth_session as self.auth_session:
+            self.auth_session = auth_session
+            self.login()
+            auth_response_url_query = self.oauth2_authorization()
 
-        self.login()
-        token_dict = self.oauth2_authorization()
-        del self.auth_session
-
-        if 'access_token' in token_dict:
-            return token_dict['access_token'], token_dict['expires_in']
+        if 'access_token' in auth_response_url_query:
+            return auth_response_url_query['access_token'], auth_response_url_query['expires_in']
         else:
             raise VkAuthError('OAuth2 authorization error')
-
-    def get_login_form_action(self):
-        logger.debug('GET %s', self.LOGIN_URL)
-        login_response = self.auth_session.get(self.LOGIN_URL)
-        logger.debug('%s - %s', self.LOGIN_URL, login_response.status_code)
-
-        login_form_action = re.findall(r'<form ?.* action="(.+)"', login_response.text)
-        if not login_form_action:
-            raise VkAuthError('VK changed login flow')
-        return login_form_action[0]
-
-    def get_login_response(self, login_form_action, login_form_data):
-        logger.debug('POST %s, data: %s', login_form_action, login_form_data)
-        login_response = self.auth_session.post(login_form_action, login_form_data)
-        logger.debug('%s - %s', login_form_action, login_response.status_code)
-        return login_response
 
     def login(self):
         """
         Login
         """
 
-        login_form_action = self.get_login_form_action()
+        response = self.auth_session.get(self.LOGIN_URL)
+        login_form_action = get_form_action(response.text)
+        if not login_form_action:
+            raise VkAuthError('VK changed login flow')
+
         login_form_data = {
             'email': self.user_login,
             'pass': self.user_password,
         }
-        login_response = self.get_login_response(login_form_action, login_form_data)
+        response = self.auth_session.post(login_form_action, login_form_data)
+        logger.debug('Cookies: %s', self.auth_session.cookies)
 
-        logger.debug('Cookies %s', self.auth_session.cookies)
-        logger.info('Login response url %s', login_response.url)
-
-        login_response_url_query = parse_url_query(login_response.url)
+        response_url_query = get_url_query(response.url)
 
         if 'remixsid' in self.auth_session.cookies or 'remixsid6' in self.auth_session.cookies:
-            pass
-        elif 'sid' in login_response_url_query:
-            self.auth_captcha_is_needed(login_response, login_form_data)
-        elif login_response_url_query.get('act') == 'authcheck':
-            self.auth_code_is_needed(login_response.text)
-        elif 'security_check' in login_response_url_query:
-            self.phone_number_is_needed(login_response.text)
+            return
+
+        if 'sid' in response_url_query:
+            self.auth_captcha_is_needed(response, login_form_data)
+        elif response_url_query.get('act') == 'authcheck':
+            self.auth_check_is_needed(response.text)
+        elif 'security_check' in response_url_query:
+            self.phone_number_is_needed(response.text)
         else:
             raise VkAuthError('Authorization error (incorrect password)')
 
@@ -119,101 +106,76 @@ class AuthMixin(object):
         """
         OAuth2
         """
-        auth_session = self.auth_session
-
-        oauth_data = {
-            'response_type': 'token',
+        auth_data = {
             'client_id': self.app_id,
-            'scope': self.scope,
             'display': 'mobile',
+            'response_type': 'token',
+            'scope': self.scope,
+            'v': self.api_version,
         }
-        logger.debug('POST %s data %s', self.AUTHORISE_URI, oauth_data)
-        response = auth_session.post(self.AUTHORISE_URI, oauth_data)
-        logger.debug('%s - %s', self.AUTHORISE_URI, response.status_code)
-        logger.info('OAuth URL: %s %s', response.request.url, oauth_data)
+        response = self.auth_session.post(self.AUTHORIZE_URL, auth_data)
+        response_url_query = get_url_query(response.url)
+        if 'access_token' in response_url_query:
+            return response_url_query
 
-        if 'access_token' not in response.url:
-            logger.info('Geting permissions')
-            form_action = re.findall(r'<form method="post" action="(.+?)">', response.text)
-            logger.debug('form_action %s', form_action)
-            if form_action:
-                response = auth_session.get(form_action[0])
-            else:
-                try:
-                    json_data = response.json()
-                except ValueError:  # not json in response
-                    error_message = 'OAuth2 grant access error'
-                else:
-                    error_message = 'VK error: [{0}] {1}'.format(
-                        json_data['error'],
-                        json_data['error_description']
-                    )
-                auth_session.close()
-                raise VkAuthError(error_message)
-            logger.info('Permissions obtained')
+        # Permissions is needed
+        logger.info('Getting permissions')
+        # form_action = re.findall(r'<form method="post" action="(.+?)">', auth_response.text)[0]
+        form_action = get_form_action(response.text)
+        logger.debug('Response form action: %s', form_action)
+        if form_action:
+            response = self.auth_session.get(form_action)
+            response_url_query = get_url_query(response.url)
+            return response_url_query
 
-        auth_session.close()
+        try:
+            response_json = response.json()
+        except ValueError:  # not JSON in response
+            error_message = 'OAuth2 grant access error'
+        else:
+            error_message = 'VK error: [{}] {}'.format(response_json['error'], response_json['error_description'])
+        logger.error('Permissions obtained')
+        raise VkAuthError(error_message)
 
-        parsed_url = urlparse(response.url)
-        logger.debug('Parsed URL: %s', parsed_url)
-
-        token_dict = dict(parse_qsl(parsed_url.fragment))
-        return token_dict
-
-    def auth_code_is_needed(self, text, session):
-        logger.info('You use 2 factors authorization. Enter auth code please')
-        auth_hash = re.findall(r'action="/login\?act=authcheck_code&hash=([0-9a-z_]+)"', text)
-        logger.debug('auth_hash %s', auth_hash)
-        if not auth_hash:
-            raise VkAuthError('Cannot find hash, maybe vk.com changed login flow')
-
-        auth_hash = auth_hash[0][1]
-        logger.debug('hash %s', auth_hash)
-        code_data = {
-            'code': self.get_auth_check_code(),
+    def auth_check_is_needed(self, html):
+        logger.info('User enabled 2 factors authorization. Auth check code is needed')
+        auth_check_form_action = get_form_action(html)
+        auth_check_code = self.get_auth_check_code()
+        auth_check_data = {
+            'code': auth_check_code,
             '_ajax': '1',
             'remember': '1'
         }
-        params = {
-            'act': 'authcheck_code',
-            'hash': auth_hash,
-        }
-        # todo Calc login_url from form
-        login_url = self.LOGIN_URL
-        logger.debug('POST %s %s data %s', login_url, params, code_data)
-        response = session.post(login_url, params=params, data=code_data)
-        logger.debug('%s - %s', login_url, response.status_code)
+        response = self.auth_session.post(auth_check_form_action, data=auth_check_data)
 
-    def auth_captcha_is_needed(self, response, login_form_data, session):
+    def auth_captcha_is_needed(self, response, login_form_data):
         logger.info('Captcha is needed')
 
-        logger.debug('Response url %s', response.url)
-        parsed_url = urlparse(response.url)
-        response_url_dict = dict(parse_qsl(parsed_url.query))
+        response_url_dict = get_url_query(response.url)
 
-        logger.debug('response_url_dict %s', response_url_dict)
-
-        form_url = re.findall(r'<form method="post" action="(.+)" novalidate>', response.text)
-        logger.debug('form_url %s', form_url)
-        if not form_url:
+        # form_url = re.findall(r'<form method="post" action="(.+)" novalidate>', response.text)
+        captcha_form_action = get_form_action(response.text)
+        logger.debug('form_url %s', captcha_form_action)
+        if not captcha_form_action:
             raise VkAuthError('Cannot find form url')
 
         captcha_url = '%s?s=%s&sid=%s' % (self.CAPTCHA_URI, response_url_dict['s'], response_url_dict['sid'])
-        logger.debug('Captcha url %s', captcha_url)
+        # logger.debug('Captcha url %s', captcha_url)
 
         login_form_data['captcha_sid'] = response_url_dict['sid']
         login_form_data['captcha_key'] = self.on_captcha_is_needed(captcha_url)
 
-        logger.debug('POST %s data %s', form_url[0], login_form_data)
-        response = session.post(form_url[0], login_form_data)
-        logger.debug('%s - %s', form_url[0], response.status_code)
+        response = self.auth_session.post(captcha_form_action, login_form_data)
 
-        logger.debug('Cookies %s', session.cookies)
-        if 'remixsid' not in session.cookies and 'remixsid6' not in session.cookies:
-            raise VkAuthError('Authorization error (Bad password or captcha key)')
+        # logger.debug('Cookies %s', self.auth_session.cookies)
+        # if 'remixsid' not in self.auth_session.cookies and 'remixsid6' not in self.auth_session.cookies:
+        #     raise VkAuthError('Authorization error (Bad password or captcha key)')
 
-    def phone_number_is_needed(self, text, auth_session):
+    def phone_number_is_needed(self, text):
         raise VkAuthError('Phone number is needed')
+
+    def get_auth_check_code(self):
+        raise VkAuthError('Auth check code is needed')
 
 
 class InteractiveMixin(object):
@@ -247,4 +209,4 @@ class InteractiveMixin(object):
         Read Auth code from shell
         """
         auth_check_code = raw_input('Auth check code: ')
-        return auth_check_code
+        return auth_check_code.strip()

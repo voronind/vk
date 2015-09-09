@@ -1,8 +1,14 @@
 
+import logging
 from collections import Iterable
+import re
+
+import requests
 
 
 STRING_TYPES = (str, bytes, bytearray)
+
+logger = logging.getLogger('vk')
 
 
 try:
@@ -45,9 +51,17 @@ def stringify_values(dictionary):
     return stringified_values_dict
 
 
-def parse_url_query(url):
+def get_url_query(url):
     parsed_url = urlparse(url)
     url_query = parse_qsl(parsed_url.fragment)
     # login_response_url_query can have multiple key
     url_query = dict(url_query)
     return url_query
+
+
+class LoggingSession(requests.Session):
+    def request(self, method, url, **kwargs):
+        logger.debug('Request: %s %s, params=%r, data=%r', method, url, kwargs.get('params'), kwargs.get('data'))
+        response = super(self, LoggingSession).request(method, url, **kwargs)
+        logger.debug('Response: %s - %s', response.url, response.status_code)
+        return response
