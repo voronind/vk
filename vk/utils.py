@@ -59,9 +59,15 @@ def get_url_query(url):
     return url_query
 
 
+def get_form_action(html):
+    form_action = re.findall(r'<form(?= ).* action="(.+)"', html)
+    if form_action:
+        return form_action[0]
+
+
 class LoggingSession(requests.Session):
     def request(self, method, url, **kwargs):
         logger.debug('Request: %s %s, params=%r, data=%r', method, url, kwargs.get('params'), kwargs.get('data'))
-        response = super(self, LoggingSession).request(method, url, **kwargs)
+        response = super(LoggingSession, self).request(method, url, **kwargs)
         logger.debug('Response: %s - %s', response.url, response.status_code)
         return response

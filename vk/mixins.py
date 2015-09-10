@@ -58,7 +58,7 @@ class AuthMixin(object):
         """
         Get access token using app id and user login and password.
         """
-        logger.info('AuthMixin.get_access_token()')
+        logger.debug('AuthMixin.get_access_token()')
 
         auth_session = LoggingSession()
         with auth_session as self.auth_session:

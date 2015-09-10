@@ -8,7 +8,7 @@ import warnings
 import requests
 
 from vk.logs import LOGGING_CONFIG
-from vk.utils import stringify_values, json_iter_parse
+from vk.utils import stringify_values, json_iter_parse, LoggingSession
 from vk.exceptions import VkAuthError, VkAPIMethodError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
 from vk.mixins import AuthMixin, InteractiveMixin
 
@@ -35,7 +35,8 @@ class API(object):
         self.access_token = access_token
         self.access_token_is_needed = False
 
-        self.requests_session = requests.Session()
+        # self.requests_session = requests.Session()
+        self.requests_session = LoggingSession()
         self.requests_session.headers['Accept'] = 'application/json'
         self.requests_session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
@@ -76,6 +77,7 @@ class API(object):
         """
         Dummy method
         """
+        logger.debug('API.get_access_token()')
         return self._access_token, self._access_token_expires_in
 
     def __getattr__(self, method_name):
@@ -89,7 +91,7 @@ class API(object):
     def __call__(self, method_name, **method_kwargs):
 
         # self.check_access_token()
-
+        logger.debug('Prepare API Method request')
         # todo Create MethodObject that keeps params to recall API method more easily
 
         response = self.method_request(method_name, **method_kwargs)
@@ -132,7 +134,6 @@ class API(object):
         method_kwargs = stringify_values(method_kwargs)
         params.update(method_kwargs)
         url = self.API_URL + method_name
-        logger.info('Make request %s, %s', url, params)
         response = self.requests_session.post(url, params, timeout=timeout or self.default_timeout)
         return response
 
@@ -174,6 +175,7 @@ class APIMethod(object):
         self._method_name = method_name
 
     def __getattr__(self, method_name):
+        logger.debug('Create API Method')
         return APIMethod(self._api_session, self._method_name + '.' + method_name)
 
     def __call__(self, **method_kwargs):
