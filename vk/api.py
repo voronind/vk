@@ -40,30 +40,21 @@ class API(object):
         self.requests_session.headers['Accept'] = 'application/json'
         self.requests_session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
-    def drop_access_token(self):
-        logger.info('Access token was dropped')
-        self.access_token = None
-        self.access_token_is_needed = True
-
     @property
     def access_token(self):
         logger.debug('Check that we need new access token')
-        # if not self._access_token and self.access_token_is_needed:
-        if self.access_token_is_needed or self.access_token_was_expired:
-            logger.debug('Try to get access token')
-            self._access_token, self._access_token_expires_in = self.get_access_token()
+        if self.access_token_is_needed:
+            logger.debug('We need new access token. Try to get it.')
+            self.access_token, self._access_token_expires_in = self.get_access_token()
             logger.info('Got new access token')
         logger.debug('access_token = %r, expires in %s', self.censored_access_token, self._access_token_expires_in)
         return self._access_token
-
-    @property
-    def access_token_was_expired(self):
-        return False
 
     @access_token.setter
     def access_token(self, value):
         self._access_token = value
         self._access_token_expires_in = None
+        self.access_token_is_needed = not self._access_token
 
     @property
     def censored_access_token(self):
@@ -118,7 +109,7 @@ class API(object):
             
         if AUTHORIZATION_FAILED in error_codes:  # invalid access token
             logger.info('Authorization failed. Access token will be dropped')
-            self.drop_access_token()
+            self.access_token = None
             return self(method_name, **method_kwargs)
         else:
             raise VkAPIMethodError(errors[0])
