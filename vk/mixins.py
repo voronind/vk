@@ -100,7 +100,9 @@ class AuthMixin(object):
         elif 'security_check' in response_url_query:
             self.phone_number_is_needed(response.text)
         else:
-            raise VkAuthError('Authorization error (incorrect password)')
+            message = 'Authorization error (incorrect password)'
+            logger.error(message)
+            raise VkAuthError(message)
 
     def oauth2_authorization(self):
         """

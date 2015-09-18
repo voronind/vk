@@ -20,7 +20,7 @@ LOGGING_CONFIG = {
     },
     'formatters': {
         'vk-verbose': {
-            'format': '%(asctime)s %(name) -5s %(levelname)s: %(message)s',
+            'format': '%(asctime)s %(name) -5s %(module)s:%(lineno)d %(levelname)s: %(message)s',
         },
     },
 }
