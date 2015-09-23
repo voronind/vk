@@ -69,5 +69,5 @@ class LoggingSession(requests.Session):
     def request(self, method, url, **kwargs):
         logger.debug('Request: %s %s, params=%r, data=%r', method, url, kwargs.get('params'), kwargs.get('data'))
         response = super(LoggingSession, self).request(method, url, **kwargs)
-        logger.debug('Response: %s - %s', response.url, response.status_code)
+        logger.debug('Response: %s %s', response.status_code, response.url)
         return response

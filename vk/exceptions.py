@@ -1,8 +1,8 @@
 
 # API Error Codes
-AUTHORIZATION_FAILED = 5  # Invalid access token
+AUTHORIZATION_FAILED = 5    # Invalid access token
 CAPTCHA_IS_NEEDED = 14
-
+ACCESS_DENIED = 15          # No access to call this method
 
 class VkException(Exception):
     pass
