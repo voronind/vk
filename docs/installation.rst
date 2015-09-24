@@ -16,7 +16,7 @@ Install via pip
 Install via setuptools
 ----------------------
 
-Get package one of the ways
+Get package by one of these ways
 
 - download from `PyPI page`_
 - clone `Git repo`_

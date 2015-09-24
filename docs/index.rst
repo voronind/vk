@@ -12,9 +12,9 @@ Contents:
    :maxdepth: 2
 
    installation
-   vk-com-api
-   how-it-works
+   vk-api
    usage
+   customizing
 
 
 Indices and tables

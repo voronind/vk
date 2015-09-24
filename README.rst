@@ -22,9 +22,10 @@ Usage
 .. code:: python
 
     >>> import vk
-    >>> vkapi = vk.API()
-    >>> vkapi.users.get(user_ids='1')
-    [{'first_name': 'Павел', 'last_name': 'Дуров', 'id': 1}]
+    >>> session = vk.Session()
+    >>> api = vk.API(session)
+    >>> api.users.get(user_ids=1)
+    [{'first_name': 'Pavel', 'last_name': 'Durov', 'id': 1}]
 
 See https://vk.com/dev/methods for detailed API guide.
 

@@ -5,8 +5,9 @@ First request
 .. code:: python
 
     >>> import vk
-    >>> vkapi = vk.API()
-    >>> vkapi.users.get(user_ids='1')
+    >>> session = vk.Session()
+    >>> api = vk.API(session)
+    >>> api.users.get(user_ids=1)
     [{'first_name': 'Павел', 'last_name': 'Дуров', 'id': 1}]
 
 
