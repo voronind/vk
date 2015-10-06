@@ -7,6 +7,7 @@ import time
 import unittest
 
 import vk
+import utils
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -16,6 +17,17 @@ USER_PASSWORD = ''      # user password
 APP_ID = ''             # aka API/Client ID
 
 from test_props import USER_LOGIN, USER_PASSWORD, APP_ID
+
+
+class UtilsTestCase(unittest.TestCase):
+    def test_stringify(self):
+        self.assertEqual({1: 'str,str2'}, utils.stringify_values({1: ['str', 'str2']}))
+
+    def test_stringify_2(self):
+        self.assertEqual({1: 'стр,стр2'}, utils.stringify_values({1: ['стр', 'стр2']}))
+
+    def test_stringify_3(self):
+        self.assertEqual({1: u'стр,стр2'}, utils.stringify_values({1: [u'стр', u'стр2']}))
 
 
 class VkTestCase(unittest.TestCase):
