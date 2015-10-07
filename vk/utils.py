@@ -1,15 +1,22 @@
 
+import re
 import logging
 from collections import Iterable
-import re
 
 import requests
 
 
-STRING_TYPES = (str, bytes, bytearray)
-
 logger = logging.getLogger('vk')
 
+
+try:
+    # Python 2
+    str_type = unicode
+except NameError:
+    # Python 3
+    str_type = str
+
+STRING_TYPES = (str_type, bytes, bytearray)
 
 try:
     # Python 2
@@ -46,7 +53,7 @@ def stringify_values(dictionary):
     stringified_values_dict = {}
     for key, value in dictionary.items():
         if isinstance(value, Iterable) and not isinstance(value, STRING_TYPES):
-            value = ','.join(map(str, value))
+            value = u','.join(map(str_type, value))
         stringified_values_dict[key] = value
     return stringified_values_dict
 

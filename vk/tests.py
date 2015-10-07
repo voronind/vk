@@ -24,7 +24,7 @@ class UtilsTestCase(unittest.TestCase):
         self.assertEqual({1: 'str,str2'}, utils.stringify_values({1: ['str', 'str2']}))
 
     def test_stringify_2(self):
-        self.assertEqual({1: 'стр,стр2'}, utils.stringify_values({1: ['стр', 'стр2']}))
+        self.assertEqual({1: u'str,стр2'}, utils.stringify_values({1: ['str', u'стр2']}))
 
     def test_stringify_3(self):
         self.assertEqual({1: u'стр,стр2'}, utils.stringify_values({1: [u'стр', u'стр2']}))
