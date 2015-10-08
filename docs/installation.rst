@@ -16,13 +16,11 @@ Install via pip
 Install via setuptools
 ----------------------
 
-Get package by one of these ways
+Get package by one of these ways and install
 
-- download from `PyPI page`_
-- clone `Git repo`_
-- download `Github release <https://github.com/dimka665/vk/releases>`_
-
-and install
+- Download from `PyPI page`_
+- Clone `Git repo`_
+- Download `Github release <https://github.com/dimka665/vk/releases>`_
 
 .. code:: bash
 
