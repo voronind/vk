@@ -62,6 +62,6 @@ It's `vk.Session` subclass. Can get access token using app id and user credentia
 
 .. code:: python
 
-    session = vk.AuthSession(app_id='appid', user_login='jake@gmail.com', user_password='Finn')
+    session = vk.AuthSession(app_id='appid', user_login='jake@gmail.com', user_password='Finn', scope='friends,offline')
     api = vk.API(session)
     ...
