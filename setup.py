@@ -25,7 +25,7 @@ setup(
     description='vk.com API Python wrapper',
 
     packages=find_packages(),
-    install_requires='requests',
+    install_requires='requests>=2.8,<3.0',
 
     license='MIT License',
     classifiers=[
