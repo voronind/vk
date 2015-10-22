@@ -29,6 +29,11 @@ class AuthMixin(object):
         self.user_password = user_password
         self.scope = scope
 
+        # Some API methods get args (e.g. user id) from access token.
+        # If we define user login, we need get access token now.
+        if self.user_login:
+            self.access_token = self.get_access_token()
+
     @property
     def user_login(self):
         if not self._user_login:
@@ -68,7 +73,7 @@ class AuthMixin(object):
             auth_response_url_query = self.oauth2_authorization()
 
         if 'access_token' in auth_response_url_query:
-            return auth_response_url_query['access_token'], auth_response_url_query['expires_in']
+            return auth_response_url_query['access_token']
         else:
             raise VkAuthError('OAuth2 authorization error')
 
@@ -188,16 +193,16 @@ class InteractiveMixin(object):
 
     def get_user_password(self):
         import getpass
+
         user_password = getpass.getpass('VK user password: ')
         return user_password
 
     def get_access_token(self):
         logger.debug('InteractiveMixin.get_access_token()')
-        access_token, access_token_expires_in = super(InteractiveMixin, self).get_access_token()
+        access_token = super(InteractiveMixin, self).get_access_token()
         if not access_token:
             access_token = raw_input('VK API access token: ')
-            access_token_expires_in = None
-        return access_token, access_token_expires_in
+        return access_token
 
     def on_captcha_is_needed(self, url):
         """

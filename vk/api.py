@@ -23,12 +23,9 @@ class Session(object):
 
         logger.debug('API.__init__(access_token=%(access_token)r)', {'access_token': access_token})
 
-        # self.api_version = api_version
-        # self.default_timeout = default_timeout
         self.access_token = access_token
         self.access_token_is_needed = False
 
-        # self.requests_session = requests.Session()
         self.requests_session = LoggingSession()
         self.requests_session.headers['Accept'] = 'application/json'
         self.requests_session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
@@ -38,21 +35,20 @@ class Session(object):
         logger.debug('Check that we need new access token')
         if self.access_token_is_needed:
             logger.debug('We need new access token. Try to get it.')
-            self.access_token, self._access_token_expires_in = self.get_access_token()
-            logger.info('Got new access token')
-        logger.debug('access_token = %r, expires in %s', self.censored_access_token, self._access_token_expires_in)
+            self.access_token = self.get_access_token()
+        else:
+            logger.debug('Use old access token')
         return self._access_token
 
     @access_token.setter
     def access_token(self, value):
         self._access_token = value
-        self._access_token_expires_in = None
+        if len(value) >= 12:
+            self.censored_access_token = '{}***{}'.format(value[:4], value[-4:])
+        else:
+            self.censored_access_token = value
+        logger.debug('access_token = %r', self.censored_access_token)
         self.access_token_is_needed = not self._access_token
-
-    @property
-    def censored_access_token(self):
-        if self._access_token:
-            return '{}***{}'.format(self._access_token[:4], self._access_token[-4:])
 
     def get_user_login(self):
         logger.debug('Do nothing to get user login')
@@ -62,7 +58,7 @@ class Session(object):
         Dummy method
         """
         logger.debug('API.get_access_token()')
-        return self._access_token, self._access_token_expires_in
+        return self._access_token
 
     def make_request(self, method_request, **method_kwargs):
 

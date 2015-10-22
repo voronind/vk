@@ -4,6 +4,7 @@ AUTHORIZATION_FAILED = 5    # Invalid access token
 PERMISSION_IS_DENIED = 7
 CAPTCHA_IS_NEEDED = 14
 ACCESS_DENIED = 15          # No access to call this method
+                            # User deactivated
 INVALID_USER_ID = 113
 
 
