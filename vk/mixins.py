@@ -167,11 +167,12 @@ class AuthMixin(object):
         if not captcha_form_action:
             raise VkAuthError('Cannot find form url')
 
+        # todo Are we sure that `response_url_dict` doesn't contain CAPTCHA image url?
         captcha_url = '%s?s=%s&sid=%s' % (self.CAPTCHA_URI, response_url_dict['s'], response_url_dict['sid'])
         # logger.debug('Captcha url %s', captcha_url)
 
         login_form_data['captcha_sid'] = response_url_dict['sid']
-        login_form_data['captcha_key'] = self.on_captcha_is_needed(captcha_url)
+        login_form_data['captcha_key'] = self.get_captcha_key(captcha_url)
 
         response = self.auth_session.post(captcha_form_action, login_form_data)
 
@@ -204,12 +205,12 @@ class InteractiveMixin(object):
             access_token = raw_input('VK API access token: ')
         return access_token
 
-    def on_captcha_is_needed(self, url):
+    def get_captcha_key(self, captcha_image_url):
         """
         Read CAPTCHA key from shell
         """
-        print('Open captcha url:', url)
-        captcha_key = raw_input('Enter captcha key: ')
+        print('Open CAPTCHA image url: ', captcha_image_url)
+        captcha_key = raw_input('Enter CAPTCHA key: ')
         return captcha_key
 
     def get_auth_check_code(self):

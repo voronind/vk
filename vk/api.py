@@ -5,7 +5,7 @@ import logging.config
 
 from vk.logs import LOGGING_CONFIG
 from vk.utils import stringify_values, json_iter_parse, LoggingSession
-from vk.exceptions import VkAuthError, VkAPIMethodError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
+from vk.exceptions import VkAuthError, VkAPIError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
 from vk.mixins import AuthMixin, InteractiveMixin
 
 
@@ -60,55 +60,67 @@ class Session(object):
         logger.debug('API.get_access_token()')
         return self._access_token
 
-    def make_request(self, method_request, **method_kwargs):
+    def make_request(self, method_request, captcha_response=None):
 
         logger.debug('Prepare API Method request')
 
         response = self.send_api_request(method_request)
+        # todo Replace with something less exceptional
         response.raise_for_status()
 
         # there are may be 2 dicts in one JSON
-        # for example: {'error': ...}{'response': ...}
-        errors = []
-        error_codes = []
-        for data in json_iter_parse(response.text):
-            if 'error' in data:
-                error_data = data['error']
-                if error_data['error_code'] == CAPTCHA_IS_NEEDED:
-                    return self.on_captcha_is_needed(error_data, method_request)
+        # for example: "{'error': ...}{'response': ...}"
+        for response_or_error in json_iter_parse(response.text):
+            if 'response' in response_or_error:
+                # todo Can we have error and response simultaneously
+                # for error in errors:
+                #     logger.warning(str(error))
 
-                error_codes.append(error_data['error_code'])
-                errors.append(error_data)
+                return response_or_error['response']
 
-            if 'response' in data:
-                for error in errors:
-                    logger.warning(str(error))
+            elif 'error' in response_or_error:
+                error_data = response_or_error['error']
+                error = VkAPIError(error_data)
 
-                return data['response']
-            
-        if AUTHORIZATION_FAILED in error_codes:  # invalid access token
-            logger.info('Authorization failed. Access token will be dropped')
-            self.access_token = None
-            return self.make_request(method_request)
-        else:
-            raise VkAPIMethodError(errors[0])
+                if error.is_captcha_needed():
+                    captcha_key = self.get_captcha_key(error.captcha_img)
+                    if not captcha_key:
+                        raise error
 
-    def send_api_request(self, request):
+                    captcha_response = {
+                        'sid': error.captcha_sid,
+                        'key': captcha_key,
+                    }
+                    return self.make_request(method_request, captcha_response=captcha_response)
+
+                elif error.is_access_token_incorrect():
+                    logger.info('Authorization failed. Access token will be dropped')
+                    self.access_token = None
+                    return self.make_request(method_request)
+
+                else:
+                    raise error
+
+    def send_api_request(self, request, captcha_response=None):
         url = self.API_URL + request._method_name
         method_args = request._api._method_default_args.copy()
         method_args.update(stringify_values(request._method_args))
-        if self.access_token:
-            method_args['access_token'] = self.access_token
+        access_token = self.access_token
+        if access_token:
+            method_args['access_token'] = access_token
+        if captcha_response:
+            method_args['captcha_sid'] = captcha_response['sid']
+            method_args['captcha_key'] = captcha_response['key']
         timeout = request._api._timeout
         response = self.requests_session.post(url, method_args, timeout=timeout)
         return response
 
-    def on_captcha_is_needed(self, error_data, method_request):
+    def get_captcha_key(self, captcha_image_url):
         """
         Default behavior on CAPTCHA is to raise exception
         Reload this in child
         """
-        raise VkAPIMethodError(error_data)
+        return None
     
     def auth_code_is_needed(self, content, session):
         """
