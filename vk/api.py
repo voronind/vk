@@ -4,8 +4,8 @@ import logging
 import logging.config
 
 from vk.logs import LOGGING_CONFIG
-from vk.utils import stringify_values, json_iter_parse, LoggingSession
-from vk.exceptions import VkAuthError, VkAPIError, CAPTCHA_IS_NEEDED, AUTHORIZATION_FAILED
+from vk.utils import stringify_values, json_iter_parse, LoggingSession, str_type
+from vk.exceptions import VkAuthError, VkAPIError
 from vk.mixins import AuthMixin, InteractiveMixin
 
 
@@ -43,7 +43,7 @@ class Session(object):
     @access_token.setter
     def access_token(self, value):
         self._access_token = value
-        if len(value) >= 12:
+        if isinstance(value, str_type) and len(value) >= 12:
             self.censored_access_token = '{}***{}'.format(value[:4], value[-4:])
         else:
             self.censored_access_token = value
