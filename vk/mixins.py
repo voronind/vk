@@ -1,12 +1,9 @@
 # coding=utf8
 
-import re
 import logging
 
-import requests
-
 from vk.exceptions import VkAuthError
-from vk.utils import urlparse, parse_qsl, raw_input, get_url_query, LoggingSession, get_form_action
+from vk.utils import raw_input, get_url_query, LoggingSession, get_form_action
 
 
 logger = logging.getLogger('vk')

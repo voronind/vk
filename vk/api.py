@@ -9,7 +9,7 @@ from vk.exceptions import VkAuthError, VkAPIError
 from vk.mixins import AuthMixin, InteractiveMixin
 
 
-VERSION = '2.0a4'
+VERSION = '2.0'
 
 
 logging.config.dictConfig(LOGGING_CONFIG)
