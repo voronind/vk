@@ -65,3 +65,13 @@ It's `vk.Session` subclass. Can get access token using app id and user credentia
     session = vk.AuthSession(app_id='appid', user_login='jake@gmail.com', user_password='Finn')
     api = vk.API(session)
     ...
+
+Debugging
+---------
+
+To understand that happens you can enable debug mode.
+
+.. code:: python
+    vk.logger.setLevel('DEBUG')
+
+`vk.logger` is Python standard library `logging.Logger` instance.
