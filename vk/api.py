@@ -64,7 +64,7 @@ class Session(object):
 
         logger.debug('Prepare API Method request')
 
-        response = self.send_api_request(method_request, captcha_response)
+        response = self.send_api_request(method_request, captcha_response=captcha_response)
         # todo Replace with something less exceptional
         response.raise_for_status()
 
