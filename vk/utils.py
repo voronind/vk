@@ -58,7 +58,12 @@ def stringify_values(dictionary):
     return stringified_values_dict
 
 
-def get_url_query(url):
+def parse_url_query_params(url):
+    """Parse url query params
+
+    :param url: str: url string
+    :return: dict
+    """
     parsed_url = urlparse(url)
     url_query = parse_qsl(parsed_url.fragment)
     # login_response_url_query can have multiple key
