@@ -7,16 +7,17 @@ import time
 import unittest
 
 import vk
-import utils
+from vk.exceptions import VkAPIError
+import vk.utils as utils
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 
 # copy to test_props.py and fill it
 USER_LOGIN = ''         # user email or phone number
 USER_PASSWORD = ''      # user password
-APP_ID = ''             # aka API/Client ID
+APP_ID = None             # aka API/Client ID
 
-from test_props import USER_LOGIN, USER_PASSWORD, APP_ID
+# from vk.settings import USER_LOGIN, USER_PASSWORD, APP_ID
 
 
 class UtilsTestCase(unittest.TestCase):
@@ -31,13 +32,8 @@ class UtilsTestCase(unittest.TestCase):
 
 
 class VkTestCase(unittest.TestCase):
-
     def setUp(self):
-        auth_session = vk.AuthSession(app_id=APP_ID, user_login=USER_LOGIN, user_password=USER_PASSWORD)
-        access_token, _ = auth_session.get_access_token()
-
-        session = vk.Session(access_token=access_token)
-        self.vk_api = vk.API(session, lang='ru')
+        self.vk_api = vk.API.create_api(lang='ru')
 
     def test_get_server_time(self):
         time_1 = time.time() - 1
@@ -47,7 +43,7 @@ class VkTestCase(unittest.TestCase):
 
     def test_get_server_time_via_token_api(self):
         time_1 = time.time() - 1
-        time_2 = time_1 + 10
+        time_2 = time_1 + 20
         server_time = self.vk_api.getServerTime()
         self.assertTrue(time_1 <= server_time <= time_2)
 
@@ -55,6 +51,65 @@ class VkTestCase(unittest.TestCase):
         profiles = self.vk_api.users.get(user_id=1)
         self.assertEqual(profiles[0]['last_name'], u'Дуров')
 
+    def test_users_search(self):
+        request_opts = dict(
+            city=2,
+            age_from=18,
+            age_to=50,
+            offset=0,
+            count=1000,
+            fields=['screen_name'])
+
+        # Expect api error because search method requires access token
+        with self.assertRaises(VkAPIError) as err:
+            resp = self.vk_api.users.search(**request_opts)
+            self.assertIsNone(resp)
+            self.assertIn('no access_token passed', str(err))
+
+        # Create token-based API
+        api = vk.API.create_api(
+            app_id=APP_ID, login=USER_LOGIN, password=USER_PASSWORD)
+        resp = api.users.search(**request_opts)
+        total_num, items = resp[0], resp[1:]
+        self.assertIsInstance(total_num, int)
+        for item in items:
+            self.assertIsInstance(item, dict)
+            self.assertIn('screen_name', item)
+
+    def test_get_friends(self):
+        items = self.vk_api.friends.get(
+            fields="nickname,city,can_see_all_posts",
+            user_id=1)
+        self.assertIsInstance(items, list)
+        for item in items:
+            if 'deactivated' in item:
+                # skip deactivated users, they don't have extra fields
+                continue
+            self.assertIsInstance(item, dict)
+            self.assertIn('city', item)
+            self.assertIn('user_id', item)
+            self.assertIn('can_see_all_posts', item)
+
+
+class VkApiInstanceTest(unittest.TestCase):
+    def test_create_api_without_token(self):
+        api = vk.API.create_api()
+        self.assertIsInstance(api, vk.API)
+        self.assertIsNone(api._session.auth_api._access_token)
+
+    def test_create_api_with_token(self):
+        api = vk.API.create_api(
+            app_id=APP_ID, login=USER_LOGIN, password=USER_PASSWORD)
+        self.assertIsInstance(api, vk.API)
+
+        # Check that we have got access token on init
+        self.assertIsInstance(api._session.auth_api._access_token, str)
+
+
+class VkTestInteractive(unittest.TestCase):
+    def setUp(self):
+        self.vk_api = vk.API.create_api(
+            app_id=APP_ID, login=USER_LOGIN, password=USER_PASSWORD)
 
 if __name__ == '__main__':
     unittest.main()

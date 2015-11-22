@@ -19,16 +19,24 @@ class API(object):
         self._method_default_args = method_default_args
 
     @classmethod
-    def create_api(cls, app_id, login, password, timeout=10,
+    def create_api(cls, app_id=None, login=None, password=None, timeout=10,
                    **method_default_args):
         """Factory method to explicitly create API with app_id, login and
-        password parameters
+        password parameters.
+        If those are not passed - token-free session will be created
+        automatically
 
-        :return: API instance
+        :return: vk.API instance
         """
         session = VKSession(app_id, login, password)
         instance = cls(session=session, timeout=timeout, **method_default_args)
         return instance
+
+    def get_default_args(self):
+        return self._method_default_args.copy()
+
+    def get_timeout(self):
+        return self._timeout
 
     def make_request(self, request_obj):
         return self._session.make_request(request_obj)
@@ -46,6 +54,16 @@ class Request(object):
     def __init__(self, api, method_name):
         self._api = api
         self._method_name = method_name
+        self._method_args = None  # will be set with __call__ execution
+
+    def get_api(self):
+        return self._api
+
+    def get_method_name(self):
+        return self._method_name
+
+    def get_method_args(self):
+        return self._method_args
 
     def __getattr__(self, method_name):
         return Request(self._api, self._method_name + '.' + method_name)
@@ -56,4 +74,5 @@ class Request(object):
 
     def __repr__(self):
         return "%s(method='%s', args=%s)" % (
-            self.__class__.__name__, self._method_name, self._method_args)
+            self.__class__.__name__, self.get_method_name(),
+            self.get_method_args())
