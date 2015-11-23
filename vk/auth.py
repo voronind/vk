@@ -22,7 +22,7 @@ class BaseAuthAPI(object):
     API_VERSION = '5.40'
 
     def __init__(self, app_id=None, user_login='', user_password='',
-                 scope='offline,wall', **kwargs):
+                 scope='offline', **kwargs):
         logger.debug('Init AuthMixin: %r', self)
 
         self.app_id = app_id
