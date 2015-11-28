@@ -44,15 +44,23 @@ class UtilsTestCase(unittest.TestCase):
 
     def test_parse_url_query_params(self):
         resp_url = 'https://m.vk.com/login.php?act=security_check&to=&al_page='
-        params = utils.parse_url_query_params(resp_url)
+        params = utils.parse_url_query_params(resp_url, fragment=False)
         self.assertEqual(params['act'], 'security_check')
         # self.assertEqual(params['to'], '')
         # self.assertEqual(params['al_page'], '')
 
         resp_url = '/login.php?act=security_check&to=&hash=4b07a4650e9f22038b'
-        params = utils.parse_url_query_params(resp_url)
+        params = utils.parse_url_query_params(resp_url, fragment=False)
         self.assertEqual(params['act'], 'security_check')
         self.assertEqual(params['hash'], '4b07a4650e9f22038b')
+
+    def test_parse_url_fragments_params(self):
+        url = 'https://oauth.vk.com/blank.html#access_token=337d6dc7cd73ff0040' \
+              '&expires_in=0&user_id=12345'
+        params = utils.parse_url_query_params(url)
+        self.assertEqual(params['access_token'], '337d6dc7cd73ff0040')
+        self.assertEqual(params['expires_in'], '0')
+        self.assertEqual(params['user_id'], '12345')
 
     def test_get_form_action(self):
         html = get_fixture('require_phone_num_resp.html')

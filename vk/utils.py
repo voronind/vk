@@ -58,14 +58,18 @@ def stringify_values(dictionary):
     return stringified_values_dict
 
 
-def parse_url_query_params(url):
+def parse_url_query_params(url, fragment=True):
     """Parse url query params
 
+    :param fragment: bool: flag which is used for parsing oauth url
     :param url: str: url string
     :return: dict
     """
     parsed_url = urlparse(url)
-    url_query = parse_qsl(parsed_url.query)
+    if fragment:
+        url_query = parse_qsl(parsed_url.fragment)
+    else:
+        url_query = parse_qsl(parsed_url.query)
     # login_response_url_query can have multiple key
     url_query = dict(url_query)
     return url_query

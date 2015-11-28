@@ -118,7 +118,8 @@ class AuthAPI(BaseAuthAPI):
         response = session.post(login_form_action, login_form_data)
         logger.debug('Cookies: %s', session.cookies)
 
-        response_url_query = parse_url_query_params(response.url)
+        response_url_query = parse_url_query_params(
+            response.url, fragment=False)
         act = response_url_query.get('act')
 
         # Check response url query params firstly
@@ -177,6 +178,7 @@ class AuthAPI(BaseAuthAPI):
             response_json = response.json()
         except ValueError:  # not JSON in response
             error_message = 'OAuth2 grant access error'
+            logger.error(response.text)
         else:
             error_message = 'VK error: [{}] {}'.format(
                 response_json['error'], response_json['error_description'])
@@ -228,7 +230,7 @@ class AuthAPI(BaseAuthAPI):
             phone_prefix, phone_suffix)
         phone_number = raw_input(prompt)
 
-        params = parse_url_query_params(form_action_url)
+        params = parse_url_query_params(form_action_url, fragment=False)
         auth_data = {
             'code': phone_number,
             'act': 'security_check',
