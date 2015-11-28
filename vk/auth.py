@@ -218,8 +218,8 @@ class AuthAPI(BaseAuthAPI):
         response = session.post(captcha_form_action, login_form_data)
         return response
 
-    @staticmethod
-    def require_phone_number(html, session):
+    @classmethod
+    def require_phone_number(cls, html, session):
         logger.info(
             'Auth requires phone number. You do login from unusual place')
         form_action_url = get_form_action(html)
@@ -230,7 +230,8 @@ class AuthAPI(BaseAuthAPI):
             'code': phone_number,
             'act': 'security_check',
             'hash': params['hash']}
-        response = session.post(form_action_url, data=auth_data)
+        response = session.post(
+            url=cls.LOGIN_URL + form_action_url, data=auth_data)
         logger.info(response.text)
         return True
 
