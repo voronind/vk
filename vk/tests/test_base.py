@@ -19,6 +19,18 @@ APP_ID = None             # aka API/Client ID
 
 # from vk.settings import USER_LOGIN, USER_PASSWORD, APP_ID
 
+import sys
+import os.path as op
+
+
+FIXTURES_PATH = '/'.join([op.abspath(op.dirname(__file__)), 'fixtures'])
+
+
+def get_fixture(filename):
+    file_path = '/'.join([FIXTURES_PATH, filename])
+    with open(file_path) as fd:
+        return fd.read()
+
 
 class UtilsTestCase(unittest.TestCase):
     def test_stringify(self):
@@ -36,6 +48,17 @@ class UtilsTestCase(unittest.TestCase):
         self.assertEqual(params['act'], 'security_check')
         # self.assertEqual(params['to'], '')
         # self.assertEqual(params['al_page'], '')
+
+        resp_url = '/login.php?act=security_check&to=&hash=4b07a4650e9f22038b'
+        params = utils.parse_url_query_params(resp_url)
+        self.assertEqual(params['act'], 'security_check')
+        self.assertEqual(params['hash'], '4b07a4650e9f22038b')
+
+    def test_get_form_action(self):
+        html = get_fixture('require_phone_num_resp.html')
+        form = utils.get_form_action(html)
+        self.assertEqual(
+            form, '/login.php?act=security_check&to=&hash=4b07a4650e9f22038b')
 
 
 class VkTestCase(unittest.TestCase):

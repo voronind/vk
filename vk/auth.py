@@ -130,7 +130,10 @@ class AuthAPI(BaseAuthAPI):
             self.require_sms_code(response.text, session=session)
 
         elif act == 'security_check':
-            raise VkAuthError('Phone number is needed')
+            passed = self.require_phone_number(
+                html=response.text, session=session)
+            if not passed:
+                raise VkAuthError('Phone number is needed')
 
         session_cookies = ('remixsid' in session.cookies,
                            'remixsid6' in session.cookies)
@@ -214,6 +217,22 @@ class AuthAPI(BaseAuthAPI):
 
         response = session.post(captcha_form_action, login_form_data)
         return response
+
+    @staticmethod
+    def require_phone_number(html, session):
+        logger.info(
+            'Auth requires phone number. You do login from unusual place')
+        form_action_url = get_form_action(html)
+        phone_number = raw_input('Phone number: ')
+
+        params = parse_url_query_params(form_action_url)
+        auth_data = {
+            'code': phone_number,
+            'act': 'security_check',
+            'hash': params['hash']}
+        response = session.post(form_action_url, data=auth_data)
+        logger.info(response.text)
+        return True
 
     def get_sms_code(self):
         raise VkAuthError('Auth check code is needed')
