@@ -4,7 +4,7 @@ import logging
 import abc
 from vk.exceptions import VkAuthError, VkAPIError
 from vk.utils import raw_input, parse_url_query_params, LoggingSession, get_form_action, \
-    str_type, json_iter_parse, stringify_values
+    str_type, json_iter_parse, stringify_values, get_masked_phone_number
 import six
 
 
@@ -130,10 +130,8 @@ class AuthAPI(BaseAuthAPI):
             self.require_sms_code(response.text, session=session)
 
         elif act == 'security_check':
-            passed = self.require_phone_number(
-                html=response.text, session=session)
-            if not passed:
-                raise VkAuthError('Phone number is needed')
+            # Interactive call
+            self.require_phone_number(html=response.text, session=session)
 
         session_cookies = ('remixsid' in session.cookies,
                            'remixsid6' in session.cookies)
@@ -223,7 +221,12 @@ class AuthAPI(BaseAuthAPI):
         logger.info(
             'Auth requires phone number. You do login from unusual place')
         form_action_url = get_form_action(html)
-        phone_number = raw_input('Phone number: ')
+
+        # Get masked phone from html to make things more clear
+        phone_prefix, phone_suffix = get_masked_phone_number(html)
+        prompt = 'Phone number (%s****%s): ' % (
+            phone_prefix, phone_suffix)
+        phone_number = raw_input(prompt)
 
         params = parse_url_query_params(form_action_url)
         auth_data = {
@@ -233,7 +236,6 @@ class AuthAPI(BaseAuthAPI):
         response = session.post(
             url=cls.LOGIN_URL + form_action_url, data=auth_data)
         logger.info(response.text)
-        return True
 
     def get_sms_code(self):
         raise VkAuthError('Auth check code is needed')

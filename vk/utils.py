@@ -77,6 +77,16 @@ def get_form_action(html):
         return form_action[0]
 
 
+def get_masked_phone_number(html):
+    """Get masked phone number from security check html
+    """
+    fields = re.findall(r'<span class="field_prefix">(.*)</span>', html)
+    result = []
+    for field in fields:
+        result.append(field.lstrip('&nbsp;'))
+    return tuple(result)
+
+
 class LoggingSession(requests.Session):
     def request(self, method, url, **kwargs):
         logger.debug('Request: %s %s, params=%r, data=%r', method, url, kwargs.get('params'), kwargs.get('data'))

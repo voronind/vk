@@ -60,6 +60,11 @@ class UtilsTestCase(unittest.TestCase):
         self.assertEqual(
             form, '/login.php?act=security_check&to=&hash=4b07a4650e9f22038b')
 
+    def test_get_masked_phone_number(self):
+        html = get_fixture('require_phone_num_resp.html')
+        fields = utils.get_masked_phone_number(html)
+        self.assertEqual(fields, ('+1234', '89'))
+
 
 class VkTestCase(unittest.TestCase):
     def setUp(self):
