@@ -119,14 +119,9 @@ class AuthAPI(BaseAuthAPI):
         logger.debug('Cookies: %s', session.cookies)
 
         response_url_query = parse_url_query_params(response.url)
-
-        session_cookies = ('remixsid' in session.cookies,
-                           'remixsid6' in session.cookies)
-        if any(session_cookies):
-            # Session is already established
-            return None
-
         act = response_url_query.get('act')
+
+        # Check response url query params firstly
         if 'sid' in response_url_query:
             self.require_auth_captcha(
                 response, login_form_data, session=session)
@@ -137,6 +132,13 @@ class AuthAPI(BaseAuthAPI):
         elif act == 'security_check':
             raise VkAuthError('Phone number is needed')
 
+        session_cookies = ('remixsid' in session.cookies,
+                           'remixsid6' in session.cookies)
+
+        if any(session_cookies):
+            # Session is already established
+            logger.info('Session is already established')
+            return None
         else:
             message = 'Authorization error (incorrect password)'
             logger.error(message)
