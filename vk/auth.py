@@ -126,14 +126,15 @@ class AuthAPI(BaseAuthAPI):
             # Session is already established
             return None
 
+        act = response_url_query.get('act')
         if 'sid' in response_url_query:
             self.require_auth_captcha(
                 response, login_form_data, session=session)
 
-        elif response_url_query.get('act') == 'authcheck':
+        elif act == 'authcheck':
             self.require_sms_code(response.text, session=session)
 
-        elif 'security_check' in response_url_query:
+        elif act == 'security_check':
             raise VkAuthError('Phone number is needed')
 
         else:

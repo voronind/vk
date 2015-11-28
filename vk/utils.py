@@ -65,7 +65,7 @@ def parse_url_query_params(url):
     :return: dict
     """
     parsed_url = urlparse(url)
-    url_query = parse_qsl(parsed_url.fragment)
+    url_query = parse_qsl(parsed_url.query)
     # login_response_url_query can have multiple key
     url_query = dict(url_query)
     return url_query

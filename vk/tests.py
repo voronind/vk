@@ -30,6 +30,13 @@ class UtilsTestCase(unittest.TestCase):
     def test_stringify_3(self):
         self.assertEqual({1: u'стр,стр2'}, utils.stringify_values({1: [u'стр', u'стр2']}))
 
+    def test_parse_url_query_params(self):
+        resp_url = 'https://m.vk.com/login.php?act=security_check&to=&al_page='
+        params = utils.parse_url_query_params(resp_url)
+        self.assertEqual(params['act'], 'security_check')
+        # self.assertEqual(params['to'], '')
+        # self.assertEqual(params['al_page'], '')
+
 
 class VkTestCase(unittest.TestCase):
     def setUp(self):
