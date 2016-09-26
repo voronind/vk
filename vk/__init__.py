@@ -1,6 +1,5 @@
+from __future__ import absolute_import
 
-from vk.api import logger
-from vk.api import Session, AuthSession, InteractiveSession, InteractiveAuthSession
-from vk.api import API
+from .api import API
 
-__version__ = '2.1'
+__version__ = '2.2-a1'

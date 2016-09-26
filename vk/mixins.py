@@ -1,9 +1,9 @@
-# coding=utf8
+from __future__ import absolute_import
 
 import logging
 
-from vk.exceptions import VkAuthError
-from vk.utils import raw_input, get_url_query, LoggingSession, get_form_action
+from .exceptions import VkAuthError
+from .utils import raw_input, get_url_query, LoggingSession, get_form_action
 
 
 logger = logging.getLogger('vk')
