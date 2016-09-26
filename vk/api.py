@@ -1,15 +1,9 @@
-# coding=utf8
-
 import logging
-import logging.config
 
-from vk.logs import LOGGING_CONFIG
-from vk.utils import stringify_values, json_iter_parse, LoggingSession, str_type
-from vk.exceptions import VkAuthError, VkAPIError
-from vk.mixins import AuthMixin, InteractiveMixin
+from .mixins import AuthMixin, InteractiveMixin
+from .exceptions import VkAuthError, VkAPIError
+from .utils import stringify_values, json_iter_parse, LoggingSession, str_type
 
-
-logging.config.dictConfig(LOGGING_CONFIG)
 logger = logging.getLogger('vk')
 
 
