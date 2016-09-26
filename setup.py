@@ -8,15 +8,15 @@ from setuptools import setup, find_packages
 def get_version(file_rel_path):
     base_dir = os.path.dirname(__file__)
     file_abs_path = os.path.join(base_dir, file_rel_path)
-    with open(file_abs_path) as file_object:
-        file_content = file_object.read()
-        version = re.findall(r'^VERSION\s*=\s*[\'"](.+)[\'"]', file_content, re.MULTILINE)[0]
+    with open(file_abs_path) as file:
+        file_content = file.read()
+        version = re.findall(r"^__version__ = '(.+)'$", file_content, re.MULTILINE)[0]
         return version
 
 
 setup(
     name='vk',
-    version=get_version('vk/api.py'),
+    version=get_version('vk/__init__.py'),
 
     author='Dmitry Voronin',
     author_email='dimka665@gmail.com',
