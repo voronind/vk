@@ -3,9 +3,6 @@ import re
 import logging
 from collections import Iterable
 
-import requests
-
-
 logger = logging.getLogger('vk')
 
 
@@ -16,15 +13,14 @@ except NameError:
     # Python 3
     str_type = str
 
-STRING_TYPES = (str_type, bytes, bytearray)
+STRING_LIKE_TYPES = (str_type, bytes, bytearray)
 
 try:
     # Python 2
-    from urllib import urlencode
     from urlparse import urlparse, parse_qsl
 except ImportError:
     # Python 3
-    from urllib.parse import urlparse, parse_qsl, urlencode
+    from urllib.parse import urlparse, parse_qsl
 
 
 try:
@@ -52,7 +48,7 @@ def json_iter_parse(response_text):
 def stringify_values(dictionary):
     stringified_values_dict = {}
     for key, value in dictionary.items():
-        if isinstance(value, Iterable) and not isinstance(value, STRING_TYPES):
+        if isinstance(value, Iterable) and not isinstance(value, STRING_LIKE_TYPES):
             value = u','.join(map(str_type, value))
         stringified_values_dict[key] = value
     return stringified_values_dict
@@ -72,9 +68,18 @@ def get_form_action(html):
         return form_action[0]
 
 
-class LoggingSession(requests.Session):
-    def request(self, method, url, **kwargs):
-        logger.debug('Request: %s %s, params=%r, data=%r', method, url, kwargs.get('params'), kwargs.get('data'))
-        response = super(LoggingSession, self).request(method, url, **kwargs)
-        logger.debug('Response: %s %s', response.status_code, response.url)
-        return response
+# class LoggingSession(requests.Session):
+#     def request(self, method, url, **kwargs):
+#         logger.debug('Request: %s %s, params=%r, data=%r', method, url, kwargs.get('params'), kwargs.get('data'))
+#         response = super(LoggingSession, self).request(method, url, **kwargs)
+#         logger.debug('Response: %s %s', response.status_code, response.url)
+#         return response
+
+
+def censor_access_token(access_token):
+    if isinstance(access_token, str_type) and len(access_token) >= 12:
+        return '{}***{}'.format(access_token[:4], access_token[-4:])
+    elif access_token:
+        return '***'
+    else:
+        return access_token
