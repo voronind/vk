@@ -2,6 +2,14 @@ requests ~= 2.11
 
 # Development only
 pytest ~= 3.0
+
+flake8 < 3
+flake8-comprehensions ~= 1.2
+flake8_quotes ~= 0.8
+flake8_commas ~= 0.1
+flake8_tuple ~= 0.2
+
 tox ~= 2.3
+
 Sphinx ~= 1.4
 sphinx-autobuild ~= 0.6
