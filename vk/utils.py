@@ -58,9 +58,18 @@ def stringify_values(dictionary):
     return stringified_values_dict
 
 
-def get_url_query(url):
+def parse_url_query_params(url, fragment=True):
+    """Parse url query params
+
+    :param fragment: bool: flag which is used for parsing oauth url
+    :param url: str: url string
+    :return: dict
+    """
     parsed_url = urlparse(url)
-    url_query = parse_qsl(parsed_url.fragment)
+    if fragment:
+        url_query = parse_qsl(parsed_url.fragment)
+    else:
+        url_query = parse_qsl(parsed_url.query)
     # login_response_url_query can have multiple key
     url_query = dict(url_query)
     return url_query
@@ -70,6 +79,16 @@ def get_form_action(html):
     form_action = re.findall(r'<form(?= ).* action="(.+)"', html)
     if form_action:
         return form_action[0]
+
+
+def get_masked_phone_number(html):
+    """Get masked phone number from security check html
+    """
+    fields = re.findall(r'<span class="field_prefix">(.*)</span>', html)
+    result = []
+    for field in fields:
+        result.append(field.lstrip('&nbsp;'))
+    return tuple(result)
 
 
 class LoggingSession(requests.Session):

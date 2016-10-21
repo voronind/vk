@@ -1,6 +1,6 @@
 
 from vk.api import logger
-from vk.api import Session, AuthSession, InteractiveSession, InteractiveAuthSession
+from vk.auth import InteractiveVKSession, VKSession
 from vk.api import VERSION
 from vk.api import API
 
