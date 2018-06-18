@@ -48,8 +48,13 @@ def json_iter_parse(response_text):
 def stringify_values(dictionary):
     stringified_values_dict = {}
     for key, value in dictionary.items():
+
+        if isinstance(value, dict):
+            value = json.dumps(value)
+
         if isinstance(value, Iterable) and not isinstance(value, STRING_LIKE_TYPES):
             value = u','.join(map(str_type, value))
+
         stringified_values_dict[key] = value
     return stringified_values_dict
 
