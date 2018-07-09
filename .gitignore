@@ -2,40 +2,18 @@
 __pycache__/
 *.py[cod]
 
-# C extensions
-*.so
-
 # Distribution / packaging
-.Python
-env/
-bin/
-build/
-develop-eggs/
-dist/
-eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
+/dist/
+/vk.egg-info/
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
+# pipenv
+/.env
+/Pipfile.lock
 
 # Unit test / coverage reports
-htmlcov/
-.tox/
-.coverage
-.cache
-nosetests.xml
-coverage.xml
-
-# Translations
-*.mo
+/.coverage
+/.pytest_cache/
+/.tox/
 
 # Mr Developer
 .mr.developer.cfg
@@ -45,15 +23,11 @@ coverage.xml
 # Rope
 .ropeproject
 
-# Django stuff:
-*.log
-*.pot
-
 # Sphinx documentation
-docs/_build/
+/docs/_build/
 
 # IDEs
-.idea/
+/.idea/
 
 # Vagrant
 /.vagrant/

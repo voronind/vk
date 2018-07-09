@@ -1,5 +1,5 @@
 =========================
-vk.com API Python wrapper
+Python vk.com API wrapper
 =========================
 
 This is a vk.com (the largest Russian social network)

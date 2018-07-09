@@ -1,0 +1,32 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+name = "pypi"
+verify_ssl = true
+
+[packages]
+requests = "~=2.11"
+
+[dev-packages]
+ipython = "*"
+pytest = "*"
+pytest-cov = "*"
+pytest-flake8 = "*"
+pytest-pythonpath = "*"
+"flake8-comprehensions" = "~=1.2"
+"flake8-quotes" = "~=0.8"
+"flake8-commas" = "~=0.1"
+"flake8_tuple" = "~=0.2"
+tox = "~=2.3"
+Sphinx = "~=1.4"
+sphinx-autobuild = "~=0.6"
+
+[requires]
+python_version = "3.5"
+
+[scripts]
+test = "pytest --flake8"
+# We use equivalent of "make mode":
+# sphinx-build -M builder . _build
+docs = "sphinx-autobuild --open-browser --port 0 --delay 1 -d docs/_build/doctrees docs docs/_build/html"
+doctest = "sphinx-build -b doctest -d docs/_build/doctrees docs docs/_build/doctest"
+build-docs = "sphinx-build -b html -d docs/_build/doctrees docs docs/_build/html"
