@@ -26,7 +26,7 @@ author = 'Dmitry Voronin'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '2.2-a1'
+release = '3.0-dev'
 
 
 # -- General configuration ---------------------------------------------------
