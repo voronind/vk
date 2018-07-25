@@ -1,20 +1,22 @@
-import pytest
+import os
 import requests
+
+from pytest import fixture
 
 import vk
 
 
-@pytest.fixture
+@fixture
 def v():
-    return 'version'
+    return '5.80'
 
 
-@pytest.fixture
+@fixture(scope='session')
 def access_token():
-    return 'access-token'
+    return os.environ['APP_SERVICE_KEY']
 
 
-@pytest.fixture
+@fixture
 def api(access_token, v):
     return vk.API(access_token=access_token, v=v)
 
@@ -53,7 +55,7 @@ class Response(object):
             raise ValueError(self.status_code)
 
 
-@pytest.fixture
+@fixture
 def response_class():
     return Response
 
@@ -76,12 +78,12 @@ class MockedSessionBase(requests.Session):
         return response
 
 
-@pytest.fixture
+@fixture
 def session_class():
     return MockedSessionBase
 
 
-@pytest.fixture
+@fixture
 def mock_requests_session(monkeypatch):
 
     class MockedSession(MockedSessionBase):
