@@ -165,11 +165,11 @@ class Session(object):
                     raise error
 
     def send_api_request(self, request, captcha_response=None):
-        assert 'v' in self.method_default_args or 'v' in request._method_args, 'vk.com API version is required'
+        assert 'v' in self.method_default_args or 'v' in request.method_params, 'vk.com API version is required'
 
-        url = self.API_URL + request._method_name
+        url = self.API_URL + request.method
         method_args = self.method_default_args.copy()
-        method_args.update(stringify_values(request._method_args))
+        method_args.update(stringify_values(request.method_params))
         if self.access_token:
             method_args['access_token'] = self.access_token
         if captcha_response:

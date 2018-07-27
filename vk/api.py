@@ -5,29 +5,33 @@ from .session import Session
 logger = logging.getLogger('vk')
 
 
-class API(object):
-    def __init__(self, *args, **kwargs):
-        session_class = kwargs.pop('session_class', Session)
-        self.session = session_class(*args, **kwargs)
+class API:
+    def __init__(self, session: Session=None, **kwargs):
+        if session is None:
+            session = Session(**kwargs)
+        self._session = session
 
-    def __getattr__(self, method_name):
-        return Request(self, method_name)
+    def __getattr__(self, method):
+        return APIMethod(self._session, method)
 
-    def __call__(self, method_name, **method_kwargs):
-        return getattr(self, method_name)(**method_kwargs)
+    def __call__(self, method, **method_params):
+        return APIMethod(self._session, method)(**method_params)
 
 
-class Request(object):
-    __slots__ = ('_api', '_method_name', '_method_args')
+class APIMethod:
+    def __init__(self, session, method):
+        self._session = session
+        self._method = method
 
-    def __init__(self, api, method_name):
-        self._api = api
-        self._method_name = method_name
-        self._method_args = {}
+    def __getattr__(self, method):
+        return APIMethod(self._session, self._method + '.' + method)
 
-    def __getattr__(self, method_name):
-        return Request(self._api, self._method_name + '.' + method_name)
+    def __call__(self, **method_params):
+        request = APIRequest(self._method, method_params)
+        return self._session.make_request(request)
 
-    def __call__(self, **method_args):
-        self._method_args = method_args
-        return self._api.session.make_request(self)
+
+class APIRequest:
+    def __init__(self, method, method_params):
+        self.method = method
+        self.method_params = method_params

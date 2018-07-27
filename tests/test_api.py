@@ -27,10 +27,10 @@ def test_default_arg(mock_requests_session):
     api = vk.API(lang='language', v='v')
 
     api.some_method()
-    assert api.session.requests_session.last_request.data.lang == 'language'
+    assert api._session.requests_session.last_request.data.lang == 'language'
 
     api.some_method(lang='redefined-language')
-    assert api.session.requests_session.last_request.data.lang == 'redefined-language'
+    assert api._session.requests_session.last_request.data.lang == 'redefined-language'
 
 
 class TestTrueAPI():
