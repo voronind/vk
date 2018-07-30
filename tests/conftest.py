@@ -13,7 +13,7 @@ def v():
 
 @fixture(scope='session')
 def access_token():
-    return os.environ['APP_SERVICE_KEY']
+    return os.environ['TEST_APP_SERVICE_TOKEN']
 
 
 @fixture
