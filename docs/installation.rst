@@ -20,7 +20,7 @@ Get package by one of these ways and install
 
 - Download from `PyPI page`_
 - Clone `Git repo`_
-- Download `Github release <https://github.com/dimka665/vk/releases>`_
+- Download `Github release <https://github.com/voronind/vk/releases>`_
 
 .. code:: bash
 
@@ -30,5 +30,5 @@ Get package by one of these ways and install
 .. _PyPI page: PyPI_
 .. _Git repo: Github_
 
-.. _PyPI: https://pypi.python.org/pypi/vk
-.. _Github: https://github.com/dimka665/vk
+.. _PyPI: https://pypi.org/project/vk/
+.. _Github: https://github.com/voronind/vk
