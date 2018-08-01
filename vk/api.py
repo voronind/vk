@@ -28,7 +28,7 @@ class APIMethod:
 
     def __call__(self, **method_params):
         request = APIRequest(self._method, method_params)
-        return self._session.make_request(request)
+        return self._session.send(request)
 
 
 class APIRequest:

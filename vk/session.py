@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 import logging
 
 import requests
@@ -10,7 +8,7 @@ from .utils import raw_input, get_url_query, get_form_action, stringify_values, 
 logger = logging.getLogger('vk')
 
 
-class Session(object):
+class Session:
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
@@ -18,17 +16,17 @@ class Session(object):
 
     CAPTCHA_URI = 'https://m.vk.com/captcha.php'
 
-    def __init__(self, user_login='', user_password='', app_id='', scope='offline', access_token='', timeout=10,
-                 **method_default_args):
+    def __init__(self, user_login='', user_password='', app_id='', scope='offline', timeout=10,
+                 **method_default_params):
 
         self.user_login = user_login
         self.user_password = user_password
         self.app_id = app_id
         self.scope = scope
 
-        self.access_token = access_token
         self.timeout = timeout
-        self.method_default_args = method_default_args
+        # TODO: check common params
+        self.method_default_params = method_default_params
 
         self.auth_session = requests.Session()
         # self.requests_session = LoggingSession()
@@ -36,8 +34,20 @@ class Session(object):
         self.requests_session.headers['Accept'] = 'application/json'
         self.requests_session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
+    def update_access_token(self):
+        self.method_default_params['access_token'] = self.get_access_token()
+
+    def get_credentials(self):
+        return {
+            'user_login': self.get_user_login(),
+            'user_password': self.get_user_password(),
+            'app_id': self.get_app_id(),
+            'scope': self.get_scope(),
+        }
+
     def get_access_token(self):
-        self.login()
+        credentials = self.get_credentials()
+        return self.login(credentials['user_login'], credentials['user_password'])
 
     def get_user_login(self):
         return self.user_login
@@ -48,11 +58,10 @@ class Session(object):
     def get_app_id(self):
         return self.app_id
 
-    def login(self, user_login='', user_password='', app_id='', scope='offline'):
-        user_login = user_login or self.get_user_login()
-        user_password = user_password or self.get_user_password()
-        app_id = app_id or self.app_id
-        scope = scope or self.scope
+    def get_scope(self):
+        return self.scope
+
+    def login(self, user_login, user_password):
 
         # self.auth_session = auth_session = LoggingSession()
         # auth_session = LoggingSession()
@@ -71,8 +80,7 @@ class Session(object):
         logger.debug('Cookies: %s', auth_session.cookies)
 
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
-            self.access_token = self.oauth2_authorization()
-            return
+            return self.oauth2_authorization()
 
         response_url_query = get_url_query(response.url)
         if 'sid' in response_url_query:
@@ -123,67 +131,78 @@ class Session(object):
             message = 'VK error: [{}] {}'.format(result['error'], result['error_description'])
             raise VkAuthError(message)
 
-    def make_request(self, request, captcha_response=None):
+    def send(self, request):
 
         logger.debug('Prepare API Method request')
 
-        response = self.send_api_request(request, captcha_response=captcha_response)
+        method_url = self.API_URL + request.method
+        method_params = self.method_default_params.copy()
+        method_params.update(stringify_values(request.method_params))
+
+        response = self.requests_session.post(method_url, method_params, timeout=self.timeout)
+
         # todo Replace with something less exceptional
         response.raise_for_status()
 
-        # there are may be 2 dicts in one JSON
+        # TODO: there are may be 2 dicts in one JSON
         # for example: "{'error': ...}{'response': ...}"
         for response_or_error in json_iter_parse(response.text):
+            request.response = response_or_error
+
             if 'response' in response_or_error:
                 # todo Can we have error and response simultaneously
                 # for error in errors:
                 #     logger.warning(str(error))
-
                 return response_or_error['response']
 
             elif 'error' in response_or_error:
-                error_data = response_or_error['error']
-                error = VkAPIError(error_data)
+                api_error = VkAPIError(request.response['error'])
+                request.api_error = api_error
+                return self.handle_api_error(request)
 
-                if error.is_captcha_needed():
-                    captcha_key = self.get_captcha_key(error.captcha_img)
-                    if not captcha_key:
-                        raise error
+    def handle_api_error(self, request):
 
-                    captcha_response = {
-                        'sid': error.captcha_sid,
-                        'key': captcha_key,
-                    }
-                    return self.make_request(request, captcha_response=captcha_response)
+        api_error_handler_name = 'on_api_error_' + str(request.api_error.code)
+        api_error_handler = getattr(self, api_error_handler_name, self.on_api_error)
 
-                elif error.is_access_token_incorrect():
-                    logger.info('Authorization failed. Access token will be dropped')
-                    self.access_token = self.get_access_token()
-                    return self.make_request(request)
+        return api_error_handler(request)
 
-                else:
-                    raise error
+    def on_api_error_5(self, request):
+        """
+        5. User authorization failed
+            - no access_token passed
+        """
+        self.method_default_params['access_token'] = self.get_access_token()
+        return self.send(request)
 
-    def send_api_request(self, request, captcha_response=None):
-        assert 'v' in self.method_default_args or 'v' in request.method_params, 'vk.com API version is required'
+    def on_api_error_14(self, request):
+        """
+        14. Captcha needed
+        """
+        request.method_params['captcha_key'] = self.get_captcha_key(request)
+        request.method_params['captcha_sid'] = request.api_error.captcha_sid
 
-        url = self.API_URL + request.method
-        method_args = self.method_default_args.copy()
-        method_args.update(stringify_values(request.method_params))
-        if self.access_token:
-            method_args['access_token'] = self.access_token
-        if captcha_response:
-            method_args['captcha_sid'] = captcha_response['sid']
-            method_args['captcha_key'] = captcha_response['key']
-        response = self.requests_session.post(url, method_args, timeout=self.timeout)
-        return response
+        return self.send(request)
 
-    def get_captcha_key(self, captcha_image_url):
+    def on_api_error_15(self, request):
+        """
+        15. Access denied
+
+        """
+        logger.info('Authorization failed. Access token will be dropped')
+        self.method_default_params['access_token'] = self.get_access_token()
+        return self.send(request)
+
+    def on_api_error(self, request):
+        raise request.api_error
+
+    def get_captcha_key(self, request):
         """
         Default behavior on CAPTCHA is to raise exception
         Reload this in child
         """
-        return None
+        # request.api_error.captcha_img
+        raise request.api_error
 
     def auth_code_is_needed(self, content, session):
         """

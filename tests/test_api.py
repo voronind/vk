@@ -3,6 +3,7 @@ import time
 import pytest
 
 import vk
+from vk.exceptions import VkAuthError
 
 
 class TestVersion():
@@ -12,7 +13,7 @@ class TestVersion():
         Missed version on API instance
         """
         api = vk.API()
-        with pytest.raises(AssertionError):
+        with pytest.raises(VkAuthError):
             api.getServerTime()
 
     def test_version_in_API_instance(self, api):
