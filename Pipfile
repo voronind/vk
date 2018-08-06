@@ -8,6 +8,7 @@ requests = "~=2.11"
 
 [dev-packages]
 ipython = "*"
+ipdb = "*"
 pytest = "*"
 pytest-cov = "*"
 pytest-flake8 = "*"

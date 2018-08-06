@@ -24,6 +24,7 @@ class APISession:
         return API(session, method_common_params)
 
     def __init__(self, timeout=10):
+        self.access_token = None
         self.timeout = timeout
 
         self.requests_session = requests.Session()
@@ -61,19 +62,12 @@ class APISession:
                 return self.handle_api_error(request)
 
     def handle_api_error(self, request):
+        logger.error('Handle API error: %s', request.api_error)
 
         api_error_handler_name = 'on_api_error_' + str(request.api_error.code)
         api_error_handler = getattr(self, api_error_handler_name, self.on_api_error)
 
         return api_error_handler(request)
-
-    def on_api_error_5(self, request):
-        """
-        5. User authorization failed
-            - no access_token passed
-        """
-        self.method_common_params['access_token'] = self.get_access_token()
-        return self.send(request)
 
     def on_api_error_14(self, request):
         """
@@ -87,13 +81,14 @@ class APISession:
     def on_api_error_15(self, request):
         """
         15. Access denied
-
+            - due to scope
         """
-        logger.info('Authorization failed. Access token will be dropped')
-        self.method_common_params['access_token'] = self.get_access_token()
+        logger.error('Authorization failed. Access token will be dropped')
+        self.access_token = self.get_access_token()
         return self.send(request)
 
     def on_api_error(self, request):
+        logger.error('API error: %s', request.api_error)
         raise request.api_error
 
     def get_captcha_key(self, request):
@@ -119,7 +114,7 @@ class UserAPI(APISession):
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login='', user_password='', app_id='', scope='offline', **kwargs):
+    def __init__(self, user_login='', user_password='', app_id='', scope=0x8ffffff, **kwargs):
         super().__init__(**kwargs)
 
         self.user_login = user_login
@@ -127,10 +122,7 @@ class UserAPI(APISession):
         self.app_id = app_id
         self.scope = scope
 
-        self.auth_session = requests.Session()
-
-    def update_access_token(self):
-        self.method_common_params['access_token'] = self.get_access_token()
+        self.access_token = self.get_access_token()
 
     def get_credentials(self):
         return {
@@ -142,7 +134,8 @@ class UserAPI(APISession):
 
     def get_access_token(self):
         credentials = self.get_credentials()
-        return self.login(credentials['user_login'], credentials['user_password'])
+        auth_session = requests.Session()
+        return self.login(auth_session, credentials['user_login'], credentials['user_password'])
 
     def get_user_login(self):
         return self.user_login
@@ -156,11 +149,7 @@ class UserAPI(APISession):
     def get_scope(self):
         return self.scope
 
-    def login(self, user_login, user_password):
-
-        # self.auth_session = auth_session = LoggingSession()
-        # auth_session = LoggingSession()
-        auth_session = self.auth_session = requests.Session()
+    def login(self, auth_session, user_login, user_password):
 
         response = auth_session.get(self.LOGIN_URL)
         login_form_action = get_form_action(response.text)
@@ -175,7 +164,7 @@ class UserAPI(APISession):
         logger.debug('Cookies: %s', auth_session.cookies)
 
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
-            return self.oauth2_authorization()
+            return self.oauth2_authorization(auth_session)
 
         response_url_query = get_url_query(response.url)
         if 'sid' in response_url_query:
@@ -192,7 +181,7 @@ class UserAPI(APISession):
             logger.error(message)
             raise VkAuthError(message)
 
-    def oauth2_authorization(self):
+    def oauth2_authorization(self, auth_session):
         """
         OAuth2
         """
@@ -201,9 +190,9 @@ class UserAPI(APISession):
             'display': 'mobile',
             'response_type': 'token',
             'scope': self.scope,
-            'v': '5.28',
+            'v': '5.80',
         }
-        response = self.auth_session.post(self.AUTHORIZE_URL, auth_data)
+        response = auth_session.post(self.AUTHORIZE_URL, auth_data)
         response_url_query = get_url_query(response.url)
         # raise ZeroDivisionError
         if 'access_token' not in response_url_query:
@@ -211,11 +200,10 @@ class UserAPI(APISession):
             logger.info('Getting permissions')
             form_action = get_form_action(response.text)
             logger.debug('Response form action: %s', form_action)
-            response = self.auth_session.get(form_action)
+            response = auth_session.get(form_action)
             response_url_query = get_url_query(response.url)
 
         if 'access_token' in response_url_query:
-            self.auth_session = None
             return response_url_query['access_token']
 
         try:
