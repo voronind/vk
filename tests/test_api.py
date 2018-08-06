@@ -1,58 +1,48 @@
-import time
+from pytest import fixture
 
-import pytest
-
-import vk
-from vk.exceptions import VkAuthError
+from vk.api import API, APIMethod, APIRequest
 
 
-class TestVersion():
-
-    def test_missed_version(self):
-        """
-        Missed version on API instance
-        """
-        api = vk.API()
-        with pytest.raises(VkAuthError):
-            api.getServerTime()
-
-    def test_version_in_API_instance(self, api):
-        assert api.getServerTime()
-
-    def test_version_in_method(self, access_token, v):
-        api = vk.API(access_token=access_token)
-        assert api.getServerTime(v=v)
+class APISessionMock:
+    def send(self, request):
+        return request
 
 
-def test_default_arg(mock_requests_session):
-    api = vk.API(lang='language', v='v')
-
-    api.some_method()
-    assert api._session.requests_session.last_request.data.lang == 'language'
-
-    api.some_method(lang='redefined-language')
-    assert api._session.requests_session.last_request.data.lang == 'redefined-language'
+@fixture('module')
+def api():
+    return API(APISessionMock(), {'param': 'value'})
 
 
-class TestTrueAPI():
-
-    def test_get_server_time(self, api):
-        """
-        Get server time
-        """
-        vk_server_time = api.getServerTime()
-        assert abs(time.time() - vk_server_time) < 5 * 60
-
-    def test_durov(self, access_token, v):
-        """
-        Get users
-        """
-        api = vk.API(access_token=access_token, v=v, lang='en')
-        profiles = api.users.get(user_id=1)
-        assert profiles[0]['last_name'] == 'Durov'
+def test_api_getattr(api):
+    assert isinstance(api.some_method, APIMethod)
+    assert api.some_method._method == 'some_method'
 
 
-class TestAPI():
+def test_api_call(api):
+    assert isinstance(api('some_method'), APIMethod)
+    assert api('some_method')._method == 'some_method'
 
-    def test_using_version(self):
-        pass
+
+def test_method_getattr(api):
+    assert isinstance(api.method.some_method, APIMethod)
+    assert api.method.some_method._method == 'method.some_method'
+
+
+def test_method_call(api):
+    request = api.method()
+
+    assert isinstance(request, APIRequest)
+    assert request.method == 'method'
+    assert request.method_params == {'param': 'value'}
+
+
+def test_params_merging(api):
+    request = api.method(param2='value2')
+
+    assert request.method_params == {'param': 'value', 'param2': 'value2'}
+
+
+def test_params_overriding(api):
+    request = api.method(param='new-value')
+
+    assert request.method_params == {'param': 'new-value'}

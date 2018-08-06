@@ -1,34 +1,35 @@
 import logging
 
-from .session import Session
+from vk.utils import stringify_values
 
 logger = logging.getLogger('vk')
 
 
 class API:
-    def __init__(self, session: Session=None, **kwargs):
-        if session is None:
-            session = Session(**kwargs)
+    def __init__(self, session, method_common_params):
         self._session = session
+        self._method_common_params = method_common_params
 
-    def __getattr__(self, method):
-        return APIMethod(self._session, method)
+    def __call__(self, method):
+        return APIMethod(self._session, method, self._method_common_params)
 
-    def __call__(self, method, **method_params):
-        return APIMethod(self._session, method)(**method_params)
+    __getattr__ = __call__
 
 
 class APIMethod:
-    def __init__(self, session, method):
+    def __init__(self, session, method, method_common_params):
         self._session = session
         self._method = method
+        self._method_common_params = method_common_params
 
     def __getattr__(self, method):
-        return APIMethod(self._session, self._method + '.' + method)
+        return self.__class__(self._session, self._method + '.' + method, self._method_common_params)
 
     def __call__(self, **method_params):
-        request = APIRequest(self._method, method_params)
-        return self._session.send(request)
+        request_method_params = self._method_common_params.copy()
+        request_method_params.update(stringify_values(method_params))
+
+        return self._session.send(APIRequest(self._method, request_method_params))
 
 
 class APIRequest:

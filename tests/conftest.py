@@ -1,24 +1,16 @@
-import os
 import requests
 
 from pytest import fixture
 
-import vk
+from vk.session import APISession
 
 
-@fixture
+@fixture('session')
 def v():
+    """
+    Actual vk API version
+    """
     return '5.80'
-
-
-@fixture(scope='session')
-def access_token():
-    return os.environ['TEST_APP_SERVICE_TOKEN']
-
-
-@fixture
-def api(access_token, v):
-    return vk.API(access_token=access_token, v=v)
 
 
 class Attributable(object):
@@ -90,7 +82,7 @@ def mock_requests_session(monkeypatch):
 
         def mocked_request(self, verb, url, **kwargs):
             if verb == 'POST':
-                if url.startswith(vk.Session.API_URL):
+                if url.startswith(APISession.API_URL):
                     # method = url[len(vk.Session.API_URL):]
                     return Response()
 
