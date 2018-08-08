@@ -1,15 +1,17 @@
+import re
+import urllib
 import logging
 
 import requests
 
 from .exceptions import VkAuthError, VkAPIError
-from .api import API
-from .utils import raw_input, get_url_query, get_form_action, json_iter_parse
+from .api import APINamespace
+from .utils import raw_input, json_iter_parse
 
 logger = logging.getLogger('vk')
 
 
-class APISession:
+class API:
     METHOD_COMMON_PARAMS = {'v', 'lang', 'https', 'test_mode'}
 
     API_URL = 'https://api.vk.com/method/'
@@ -18,18 +20,18 @@ class APISession:
     def __new__(cls, *args, **kwargs):
         method_common_params = {key: kwargs.pop(key) for key in tuple(kwargs) if key in cls.METHOD_COMMON_PARAMS}
 
-        session = object.__new__(cls)
-        session.__init__(*args, **kwargs)
+        api = object.__new__(cls)
+        api.__init__(*args, **kwargs)
 
-        return API(session, method_common_params)
+        return APINamespace(api, method_common_params)
 
     def __init__(self, timeout=10):
         self.access_token = None
         self.timeout = timeout
 
-        self.requests_session = requests.Session()
-        self.requests_session.headers['Accept'] = 'application/json'
-        self.requests_session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        self.session = requests.Session()
+        self.session.headers['Accept'] = 'application/json'
+        self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
     def get_access_token(self):
         raise NotImplementedError
@@ -40,7 +42,7 @@ class APISession:
 
         method_url = self.API_URL + request.method
         request.method_params['access_token'] = self.access_token
-        response = self.requests_session.post(method_url, request.method_params, timeout=self.timeout)
+        response = self.session.post(method_url, request.method_params, timeout=self.timeout)
 
         # todo Replace with something less exceptional
         response.raise_for_status()
@@ -100,21 +102,17 @@ class APISession:
         raise request.api_error
 
 
-class ServiceAPI(APISession):
+class ServiceAPI(API):
     def __init__(self, service_token, **kwargs):
         super().__init__(**kwargs)
         self.access_token = service_token
 
 
-class CommunityAPI(APISession):
-    pass
-
-
-class UserAPI(APISession):
+class UserAPI(API):
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login='', user_password='', app_id='', scope=0x8ffffff, **kwargs):
+    def __init__(self, user_login='', user_password='', app_id=None, scope='offline', **kwargs):
         super().__init__(**kwargs)
 
         self.user_login = user_login
@@ -124,95 +122,93 @@ class UserAPI(APISession):
 
         self.access_token = self.get_access_token()
 
-    def get_credentials(self):
-        return {
-            'user_login': self.get_user_login(),
-            'user_password': self.get_user_password(),
-            'app_id': self.get_app_id(),
-            'scope': self.get_scope(),
-        }
+    @staticmethod
+    def get_form_action(response):
+        form_action = re.findall(r'<form(?= ).* action="(.+)"', response.text)
+        if form_action:
+            return form_action[0]
+        else:
+            raise VkAuthError('No form on page {}'.format(response.url))
+
+    def get_response_url_queries(self, response):
+        if not response.ok:
+            if response.status_code == 401:
+                raise VkAuthError(response.json()['error_description'])
+            else:
+                response.raise_for_status()
+
+        return self.get_url_queries(response.url)
+
+    @staticmethod
+    def get_url_queries(url):
+        parsed_url = urllib.parse.urlparse(url)
+        url_queries = urllib.parse.parse_qsl(parsed_url.fragment)
+        # We lose repeating keys values
+        return dict(url_queries)
 
     def get_access_token(self):
-        credentials = self.get_credentials()
         auth_session = requests.Session()
-        return self.login(auth_session, credentials['user_login'], credentials['user_password'])
 
-    def get_user_login(self):
-        return self.user_login
+        if self.login(auth_session):
+            return self.authorize(auth_session)
 
-    def get_user_password(self):
-        return self.user_password
-
-    def get_app_id(self):
-        return self.app_id
-
-    def get_scope(self):
-        return self.scope
-
-    def login(self, auth_session, user_login, user_password):
-
-        response = auth_session.get(self.LOGIN_URL)
-        login_form_action = get_form_action(response.text)
-        if not login_form_action:
-            raise VkAuthError('VK changed login flow')
-
-        login_form_data = {
-            'email': user_login,
-            'pass': user_password,
+    def get_login_form_data(self):
+        return {
+            'email': self.user_login,
+            'pass': self.user_password,
         }
-        response = auth_session.post(login_form_action, login_form_data)
-        logger.debug('Cookies: %s', auth_session.cookies)
+
+    def login(self, auth_session):
+        # Get login page
+        login_page_response = auth_session.get(self.LOGIN_URL)
+        # Get login form action. It must contains ip_h and lg_h values
+        login_action = self.get_form_action(login_page_response)
+        # Login using user credentials
+        login_response = auth_session.post(login_action, self.get_login_form_data())
 
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
-            return self.oauth2_authorization(auth_session)
+            return True
 
-        response_url_query = get_url_query(response.url)
-        if 'sid' in response_url_query:
-            self.auth_captcha_is_needed(response, login_form_data)
+        url_queries = self.get_url_queries(login_response.url)
+        if 'sid' in url_queries:
+            self.auth_captcha_is_needed(login_response)
 
-        elif response_url_query.get('act') == 'authcheck':
-            self.auth_check_is_needed(response.text)
+        elif url_queries.get('act') == 'authcheck':
+            self.auth_check_is_needed(login_response.text)
 
-        elif 'security_check' in response_url_query:
-            self.phone_number_is_needed(response.text)
+        elif 'security_check' in url_queries:
+            self.phone_number_is_needed(login_response.text)
 
         else:
-            message = 'Authorization error (incorrect password)'
-            logger.error(message)
-            raise VkAuthError(message)
+            raise VkAuthError('Login error (e.g. incorrect password)')
 
-    def oauth2_authorization(self, auth_session):
+    def get_auth_params(self):
+        return {
+            'client_id': self.app_id,
+            'scope': self.scope,
+            'display': 'mobile',
+            'response_type': 'token',
+        }
+
+    def authorize(self, auth_session):
         """
         OAuth2
         """
-        auth_data = {
-            'client_id': self.get_app_id(),
-            'display': 'mobile',
-            'response_type': 'token',
-            'scope': self.scope,
-            'v': '5.80',
-        }
-        response = auth_session.post(self.AUTHORIZE_URL, auth_data)
-        response_url_query = get_url_query(response.url)
-        # raise ZeroDivisionError
-        if 'access_token' not in response_url_query:
-            # Permissions is needed
-            logger.info('Getting permissions')
-            form_action = get_form_action(response.text)
-            logger.debug('Response form action: %s', form_action)
-            response = auth_session.get(form_action)
-            response_url_query = get_url_query(response.url)
+        # Ask access
+        ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
+        url_queries = self.get_response_url_queries(ask_access_response)
 
-        if 'access_token' in response_url_query:
-            return response_url_query['access_token']
+        if 'access_token' not in url_queries:
+            # Grant access
+            grant_access_action = self.get_form_action(ask_access_response)
+            grant_access_response = auth_session.post(grant_access_action)
+            url_queries = self.get_response_url_queries(grant_access_response)
 
-        try:
-            result = response.json()
-        except ValueError:  # not JSON in response
-            raise VkAuthError('OAuth2 grant access error')
-        else:
-            message = 'VK error: [{}] {}'.format(result['error'], result['error_description'])
-            raise VkAuthError(message)
+        return url_queries.get('access_token')
+
+
+class CommunityAPI(UserAPI):
+    pass
 
 
 class InteractiveMixin:

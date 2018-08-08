@@ -15,12 +15,6 @@ except NameError:
 
 STRING_LIKE_TYPES = (str_type, bytes, bytearray)
 
-try:
-    # Python 2
-    from urlparse import urlparse, parse_qsl
-except ImportError:
-    # Python 3
-    from urllib.parse import urlparse, parse_qsl
 
 
 try:
@@ -54,18 +48,7 @@ def stringify_values(dictionary):
     return stringified_values_dict
 
 
-def get_url_query(url):
-    parsed_url = urlparse(url)
-    url_query = parse_qsl(parsed_url.fragment)
-    # login_response_url_query can have multiple key
-    url_query = dict(url_query)
-    return url_query
 
-
-def get_form_action(html):
-    form_action = re.findall(r'<form(?= ).* action="(.+)"', html)
-    if form_action:
-        return form_action[0]
 
 
 # class LoggingSession(requests.Session):
