@@ -1,34 +1,15 @@
-
-import re
 import logging
 from collections import Iterable
 
 logger = logging.getLogger('vk')
 
-
-try:
-    # Python 2
-    str_type = unicode
-except NameError:
-    # Python 3
-    str_type = str
-
-STRING_LIKE_TYPES = (str_type, bytes, bytearray)
-
+STRING_LIKE_TYPES = (str, bytes, bytearray)
 
 
 try:
     import simplejson as json
 except ImportError:
     import json
-
-
-try:
-    # Python 2
-    raw_input = raw_input
-except NameError:
-    # Python 3
-    raw_input = input
 
 
 def json_iter_parse(response_text):
@@ -39,16 +20,14 @@ def json_iter_parse(response_text):
         yield obj
 
 
+def stringify(value):
+    if isinstance(value, Iterable) and not isinstance(value, STRING_LIKE_TYPES):
+        return ','.join(map(str, value))
+    return value
+
+
 def stringify_values(dictionary):
-    stringified_values_dict = {}
-    for key, value in dictionary.items():
-        if isinstance(value, Iterable) and not isinstance(value, STRING_LIKE_TYPES):
-            value = u','.join(map(str_type, value))
-        stringified_values_dict[key] = value
-    return stringified_values_dict
-
-
-
+    return {key: stringify(value) for key, value in dictionary.items()}
 
 
 # class LoggingSession(requests.Session):
@@ -60,7 +39,7 @@ def stringify_values(dictionary):
 
 
 def censor_access_token(access_token):
-    if isinstance(access_token, str_type) and len(access_token) >= 12:
+    if isinstance(access_token, str) and len(access_token) >= 12:
         return '{}***{}'.format(access_token[:4], access_token[-4:])
     elif access_token:
         return '***'

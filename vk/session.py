@@ -6,7 +6,7 @@ import requests
 
 from .exceptions import VkAuthError, VkAPIError
 from .api import APINamespace
-from .utils import raw_input, json_iter_parse
+from .utils import json_iter_parse, stringify
 
 logger = logging.getLogger('vk')
 
@@ -33,15 +33,13 @@ class API:
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
-    def get_access_token(self):
-        raise NotImplementedError
-
     def send(self, request):
 
         logger.debug('Prepare API Method request')
 
+        self.prepare_request(request)
+
         method_url = self.API_URL + request.method
-        request.method_params['access_token'] = self.access_token
         response = self.session.post(method_url, request.method_params, timeout=self.timeout)
 
         # todo Replace with something less exceptional
@@ -62,6 +60,12 @@ class API:
                 api_error = VkAPIError(request.response['error'])
                 request.api_error = api_error
                 return self.handle_api_error(request)
+
+    def prepare_request(self, request):
+        request.method_params['access_token'] = self.access_token
+
+    def get_access_token(self):
+        raise NotImplementedError
 
     def handle_api_error(self, request):
         logger.error('Handle API error: %s', request.api_error)
@@ -204,17 +208,49 @@ class UserAPI(API):
             grant_access_response = auth_session.post(grant_access_action)
             url_queries = self.get_response_url_queries(grant_access_response)
 
+        return self.process_auth_url_queries(url_queries)
+
+    def process_auth_url_queries(self, url_queries):
+        self.expires_in = url_queries.get('expires_in')
+        self.user_id = url_queries.get('user_id')
         return url_queries.get('access_token')
 
 
 class CommunityAPI(UserAPI):
-    pass
+    def __init__(self, *args, **kwargs):
+        self.group_ids = kwargs.pop('group_ids', None)
+        self.default_group_id = None
+
+        self.access_tokens = {}
+
+        super().__init__(*args, **kwargs)
+
+    def get_auth_params(self):
+        auth_params = super().get_auth_params()
+        auth_params['group_ids'] = stringify(self.group_ids)
+        return auth_params
+
+    def process_auth_url_queries(self, url_queries):
+        super().process_auth_url_queries(url_queries)
+
+        self.access_tokens = {}
+        for key, value in url_queries.items():
+            # access_token_GROUP-ID: ACCESS-TOKEN
+            if key.startswith('access_token_'):
+                group_id = int(key[len('access_token_'):])
+                self.access_tokens[group_id] = value
+
+        self.default_group_id = self.group_ids[0]
+
+    def prepare_request(self, request):
+        group_id = request.method_params.get('group_id', self.default_group_id)
+        request.method_params['access_token'] = self.access_tokens[group_id]
 
 
 class InteractiveMixin:
 
     def get_user_login(self):
-        user_login = raw_input('VK user login: ')
+        user_login = input('VK user login: ')
         return user_login.strip()
 
     def get_user_password(self):
@@ -227,7 +263,7 @@ class InteractiveMixin:
         logger.debug('InteractiveMixin.get_access_token()')
         access_token = super().get_access_token()
         if not access_token:
-            access_token = raw_input('VK API access token: ')
+            access_token = input('VK API access token: ')
         return access_token
 
     def get_captcha_key(self, captcha_image_url):
@@ -235,12 +271,12 @@ class InteractiveMixin:
         Read CAPTCHA key from shell
         """
         print('Open CAPTCHA image url: ', captcha_image_url)
-        captcha_key = raw_input('Enter CAPTCHA key: ')
+        captcha_key = input('Enter CAPTCHA key: ')
         return captcha_key
 
     def get_auth_check_code(self):
         """
         Read Auth code from shell
         """
-        auth_check_code = raw_input('Auth check code: ')
+        auth_check_code = input('Auth check code: ')
         return auth_check_code.strip()
