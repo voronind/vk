@@ -1,6 +1,6 @@
 from pytest import fixture
 
-from vk.api import API, APIMethod, APIRequest
+from vk.api import APINamespace, APIMethod, APIRequest
 
 
 class APISessionMock:
@@ -10,7 +10,7 @@ class APISessionMock:
 
 @fixture('module')
 def api():
-    return API(APISessionMock(), {'param': 'value'})
+    return APINamespace(APISessionMock(), {'param': 'value'})
 
 
 def test_api_getattr(api):
