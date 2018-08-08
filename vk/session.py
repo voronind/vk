@@ -11,7 +11,7 @@ from .utils import json_iter_parse, stringify
 logger = logging.getLogger('vk')
 
 
-class API:
+class APIBase:
     METHOD_COMMON_PARAMS = {'v', 'lang', 'https', 'test_mode'}
 
     API_URL = 'https://api.vk.com/method/'
@@ -26,7 +26,6 @@ class API:
         return APINamespace(api, method_common_params)
 
     def __init__(self, timeout=10):
-        self.access_token = None
         self.timeout = timeout
 
         self.session = requests.Session()
@@ -106,13 +105,13 @@ class API:
         raise request.api_error
 
 
-class ServiceAPI(API):
-    def __init__(self, service_token, **kwargs):
+class API(APIBase):
+    def __init__(self, access_token, **kwargs):
         super().__init__(**kwargs)
-        self.access_token = service_token
+        self.access_token = access_token
 
 
-class UserAPI(API):
+class UserAPI(APIBase):
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 

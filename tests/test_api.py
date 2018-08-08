@@ -1,48 +1,37 @@
-from pytest import fixture
+import os
+import time
 
-from vk.api import APINamespace, APIMethod, APIRequest
+from pytest import fixture, raises
 
-
-class APISessionMock:
-    def send(self, request):
-        return request
-
-
-@fixture('module')
-def api():
-    return APINamespace(APISessionMock(), {'param': 'value'})
+from vk import API
+from vk.exceptions import VkAPIError
 
 
-def test_api_getattr(api):
-    assert isinstance(api.some_method, APIMethod)
-    assert api.some_method._method == 'some_method'
+@fixture('session')
+def service_token():
+    return os.environ['TEST_APP_SERVICE_TOKEN']
 
 
-def test_api_call(api):
-    assert isinstance(api('some_method'), APIMethod)
-    assert api('some_method')._method == 'some_method'
+@fixture
+def api(service_token, v):
+    return API(service_token, v=v, lang='en')
 
 
-def test_method_getattr(api):
-    assert isinstance(api.method.some_method, APIMethod)
-    assert api.method.some_method._method == 'method.some_method'
+def test_v_param(service_token, v):
+    """
+    Missed version on API instance
+    """
+    api = API(service_token)
+
+    with raises(VkAPIError, match='8\. Invalid request: v \(version\) is required'):
+        api.getServerTime()
+
+    assert api.getServerTime(v=v) > time.time() - 10
 
 
-def test_method_call(api):
-    request = api.method()
-
-    assert isinstance(request, APIRequest)
-    assert request.method == 'method'
-    assert request.method_params == {'param': 'value'}
-
-
-def test_params_merging(api):
-    request = api.method(param2='value2')
-
-    assert request.method_params == {'param': 'value', 'param2': 'value2'}
-
-
-def test_params_overriding(api):
-    request = api.method(param='new-value')
-
-    assert request.method_params == {'param': 'new-value'}
+def test_durov(api):
+    """
+    Get users
+    """
+    users = api.users.get(user_id=1)
+    assert users[0]['last_name'] == 'Durov'

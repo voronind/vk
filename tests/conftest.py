@@ -2,7 +2,7 @@ import requests
 
 from pytest import fixture
 
-from vk.session import API
+from vk.session import APIBase
 
 
 @fixture('session')
@@ -82,7 +82,7 @@ def mock_requests_session(monkeypatch):
 
         def mocked_request(self, verb, url, **kwargs):
             if verb == 'POST':
-                if url.startswith(API.API_URL):
+                if url.startswith(APIBase.API_URL):
                     # method = url[len(vk.Session.API_URL):]
                     return Response()
 
