@@ -17,7 +17,6 @@ pytest-pythonpath = "*"
 "flake8-quotes" = "~=0.8"
 "flake8-commas" = "~=0.1"
 "flake8_tuple" = "~=0.2"
-tox = "~=2.3"
 Sphinx = "~=1.4"
 sphinx-autobuild = "~=0.6"
 
@@ -25,7 +24,8 @@ sphinx-autobuild = "~=0.6"
 python_version = "3.5"
 
 [scripts]
-test = "pytest --flake8"
+test = "pytest --exitfirst --failed-first"
+fulltest = "pytest --flake8 --cov --no-cov-on-fail vk tests docs/conf.py"
 # We use equivalent of "make mode":
 # sphinx-build -M builder . _build
 docs = "sphinx-autobuild --open-browser --port 0 --delay 1 -d docs/_build/doctrees docs docs/_build/html"
