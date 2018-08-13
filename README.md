@@ -1,4 +1,3 @@
-=========================
 Python vk.com API wrapper
 =========================
 
@@ -12,24 +11,24 @@ Quickstart
 Install
 -------
 
-.. code:: bash
-
-    pip install vk
+```console
+pip install vk
+```
 
 Usage
 -----
 
-.. code:: python
-
-    >>> import vk
-    >>> session = vk.Session()
-    >>> api = vk.API(session)
-    >>> api.users.get(user_ids=1)
-    [{'first_name': 'Pavel', 'last_name': 'Durov', 'id': 1}]
+```python
+>>> import vk
+>>> session = vk.Session()
+>>> api = vk.API(session)
+>>> api.users.get(user_ids=1)
+[{'first_name': 'Pavel', 'last_name': 'Durov', 'id': 1}]
+```
 
 See https://vk.com/dev/methods for detailed API guide.
 
 More info
 =========
 
-`Read full documentation <http://vk.readthedocs.org>`_
+Read full documentation https://vk.readthedocs.org
