@@ -104,6 +104,15 @@ class APIBase:
         # request.api_error.captcha_img
         raise request.api_error
 
+    def set_proxy(self, proxy=None):
+        """
+        Set proxy for all requests
+        Proxy format - user:password@ip:port
+        """
+        if proxy is not None:
+            proxies = {'http': proxy, 'https': proxy}
+            self.session.proxies.update(proxies)
+
 
 class API(APIBase):
     def __init__(self, access_token, **kwargs):
