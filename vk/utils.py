@@ -1,5 +1,5 @@
 import logging
-from collections import Iterable
+from typing import Iterable
 
 logger = logging.getLogger('vk')
 

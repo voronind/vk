@@ -20,9 +20,6 @@ pytest-pythonpath = "*"
 Sphinx = "~=1.4"
 sphinx-autobuild = "~=0.6"
 
-[requires]
-python_version = "3.5"
-
 [scripts]
 test = "pytest --exitfirst --failed-first"
 fulltest = "pytest --flake8 --cov --no-cov-on-fail vk tests docs/conf.py"

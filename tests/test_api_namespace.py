@@ -1,5 +1,4 @@
-from pytest import fixture
-
+import pytest
 from vk.api import APINamespace, APIMethod, APIRequest
 
 
@@ -8,7 +7,7 @@ class APISessionMock:
         return request
 
 
-@fixture('module')
+@pytest.fixture(scope='module')
 def api_namespace():
     return APINamespace(APISessionMock(), {'param': 'value'})
 
