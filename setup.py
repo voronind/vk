@@ -1,12 +1,25 @@
 from setuptools import setup
 
-from pipenv.project import Project
-from pipenv.utils import convert_deps_to_pip
-
-
-def get_packages_from_Pipfile():
-    pipfile = Project(chdir=False).parsed_pipfile
-    return convert_deps_to_pip(pipfile['packages'], r=False)
-
-
-setup(install_requires=get_packages_from_Pipfile())
+setup(
+    name='vk',
+    version='3',
+    packages=[],
+    package_dir={},
+    url='https://github.com/nvo87/vk',
+    license='MIT License',
+    author='Dmitry Voronin',
+    description='Python vk.com API wrapper',
+    install_requires=['requests'],
+    zip_safe=False,
+    classifiers=[
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: Implementation :: PyPy',
+        'Intended Audience :: Developers',
+        'Topic :: Software Development :: Libraries :: Python Modules',
+    ],
+)

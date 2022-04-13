@@ -8,6 +8,7 @@ __pycache__/
 
 # pipenv
 /.env
+venv
 
 # Unit test / coverage reports
 /.coverage
