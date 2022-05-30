@@ -5,12 +5,10 @@ __pycache__/
 # Distribution / packaging
 build/
 dist/
-vk_paw.egg-info/
+*.egg-info/
 
 # pipenv
 /venv/
-/.env
-/Pipfile.lock
 
 # Unit test / coverage reports
 /.coverage
@@ -18,11 +16,5 @@ vk_paw.egg-info/
 /.pytest_cache/
 /.tox/
 
-# Sphinx documentation
-/docs/_build/
-
 # IDEs
 /.idea/
-
-# Vagrant
-/.vagrant/

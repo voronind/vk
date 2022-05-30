@@ -52,6 +52,7 @@ jobs:
       matrix:
         tox_env:
           - fix
+          - docs
     steps:
       - name: Checkout code
         uses: actions/checkout@v2

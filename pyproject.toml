@@ -43,7 +43,8 @@ test = [
 ]
 docs = [
   "sphinx>=4",
-  "sphinx-autobuild>=2021"
+  "sphinx-autobuild>=2021",
+  "sphinx-rtd-theme>=1.0.0"
 ]
 
 [tool.setuptools.packages.find]
