@@ -1,11 +1,11 @@
+import logging
 import re
 import urllib
-import logging
 
 import requests
 
-from .exceptions import VkAuthError, VkAPIError
 from .api import APINamespace
+from .exceptions import VkAPIError, VkAuthError
 from .utils import json_iter_parse, stringify
 
 logger = logging.getLogger('vk')

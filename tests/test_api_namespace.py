@@ -1,6 +1,6 @@
 import pytest
 
-from vk.api import APINamespace, APIMethod, APIRequest
+from vk.api import APIMethod, APINamespace, APIRequest
 
 
 class APISessionMock:

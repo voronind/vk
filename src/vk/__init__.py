@@ -1,4 +1,4 @@
-from .session import API, UserAPI, CommunityAPI
+from .session import API, CommunityAPI, UserAPI
 
 __version__ = '3.0.dev1'
 

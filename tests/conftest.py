@@ -1,6 +1,5 @@
-import requests
-
 import pytest
+import requests
 
 from vk.session import APIBase
 
@@ -80,7 +79,7 @@ def mock_requests_session(monkeypatch):
 
     class MockedSession(MockedSessionBase):
 
-        def mocked_request(self, verb, url, **kwargs):
+        def mocked_request(self, verb, url):
             if verb == 'POST':
                 if url.startswith(APIBase.API_URL):
                     # method = url[len(vk.Session.API_URL):]
