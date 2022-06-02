@@ -3,31 +3,18 @@ __pycache__/
 *.py[cod]
 
 # Distribution / packaging
-/dist/
-/vk.egg-info/
+build/
+dist/
+*.egg-info/
 
 # pipenv
-/.env
-/Pipfile.lock
+/venv/
 
 # Unit test / coverage reports
 /.coverage
+/coverage.xml
 /.pytest_cache/
 /.tox/
 
-# Mr Developer
-.mr.developer.cfg
-.project
-.pydevproject
-
-# Rope
-.ropeproject
-
-# Sphinx documentation
-/docs/_build/
-
 # IDEs
 /.idea/
-
-# Vagrant
-/.vagrant/

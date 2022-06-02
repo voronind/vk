@@ -1,11 +1,10 @@
+import pytest
 import requests
-
-from pytest import fixture
 
 from vk.session import APIBase
 
 
-@fixture('session')
+@pytest.fixture(scope='session')
 def v():
     """
     Actual vk API version
@@ -47,7 +46,7 @@ class Response(object):
             raise ValueError(self.status_code)
 
 
-@fixture
+@pytest.fixture
 def response_class():
     return Response
 
@@ -70,17 +69,17 @@ class MockedSessionBase(requests.Session):
         return response
 
 
-@fixture
+@pytest.fixture
 def session_class():
     return MockedSessionBase
 
 
-@fixture
+@pytest.fixture
 def mock_requests_session(monkeypatch):
 
     class MockedSession(MockedSessionBase):
 
-        def mocked_request(self, verb, url, **kwargs):
+        def mocked_request(self, verb, url):
             if verb == 'POST':
                 if url.startswith(APIBase.API_URL):
                     # method = url[len(vk.Session.API_URL):]

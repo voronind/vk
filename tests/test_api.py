@@ -1,34 +1,36 @@
 import os
 import time
 
-from pytest import fixture, raises
+import pytest
 
 from vk import API
 from vk.exceptions import VkAPIError
 
 
-@fixture('session')
+@pytest.fixture(scope='session')
 def service_token():
     return os.environ['TEST_APP_SERVICE_TOKEN']
 
 
-@fixture
+@pytest.fixture
 def api(service_token, v):
     return API(service_token, v=v, lang='en')
 
 
+@pytest.mark.skip
 def test_v_param(service_token, v):
     """
     Missed version on API instance
     """
     api = API(service_token)
 
-    with raises(VkAPIError, match='8\. Invalid request: v \(version\) is required'):
+    with pytest.raises(VkAPIError, match=r'8\. Invalid request: v \(version\) is required'):
         api.getServerTime()
 
     assert api.getServerTime(v=v) > time.time() - 10
 
 
+@pytest.mark.skip
 def test_durov(api):
     """
     Get users

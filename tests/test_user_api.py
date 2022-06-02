@@ -1,29 +1,29 @@
-from pytest import fixture, mark
+import pytest
 
 import vk
 
 
-@fixture
+@pytest.fixture
 def user_login():
     return 'user-login'
 
 
-@fixture
+@pytest.fixture
 def user_password():
     return 'user-password'
 
 
-@fixture
+@pytest.fixture
 def app_id():
     return 'app-id'
 
 
-@fixture
+@pytest.fixture
 def scope():
     return 'scope'
 
 
-@fixture(autouse=True)
+@pytest.fixture(autouse=True)
 def mock_requests_session(monkeypatch, user_login, user_password, access_token, response_class, session_class):
 
     class MockedSession(session_class):
@@ -51,7 +51,7 @@ def mock_requests_session(monkeypatch, user_login, user_password, access_token, 
     monkeypatch.setattr('requests.Session', MockedSession)
 
 
-@mark.skip
+@pytest.mark.skip
 def test_login(user_login, user_password, app_id, scope, access_token):
 
     api = vk.API(user_login=user_login, user_password=user_password, app_id=app_id, scope=scope)

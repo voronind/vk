@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vk"
+description = "Python vk.com API wrapper"
+license = { text = "MIT" }
+authors = [
+    { name = "Dmitry Voronin", email = "dimka665@gmail.com" }
+]
+maintainers = [
+    { name = "Yaroslav Kikel", email = "yaroslav.kikel.06@inbox.ru"}
+]
+dependencies = [
+    "requests~=2.24"
+]
+urls.Documentation = "https://vk.readthedocs.io"
+urls.Homepage = "https://github.com/voronind/vk"
+urls.Source = "https://github.com/voronind/vk"
+urls.Tracker = "https://github.com/voronind/vk/issues"
+readme = "README.md"
+keywords = ["vk.com", "api", "vk", "wrappper"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=6",
+    "pytest-cov>=2.7"
+]
+docs = [
+  "sphinx>=4",
+  "sphinx-autobuild>=2021",
+  "sphinx-rtd-theme>=1.0.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.dynamic]
+version = {attr = "vk.__version__"}

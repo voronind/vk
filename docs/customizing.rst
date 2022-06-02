@@ -2,9 +2,9 @@
 Customizing
 ===========
 
-Session classes
+API classes
 ---------------
 
-Session classes are ready for customizing.
+API classes are ready for customizing.
 
-.. autoclass:: vk.Session
+.. autoclass:: vk.API

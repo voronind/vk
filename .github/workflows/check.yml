@@ -1,0 +1,86 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+
+  schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  test:
+    name: Run tests - Python ${{ matrix.py }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        py:
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "pypy-3.7"
+          - "pypy-3.8"
+    steps:
+      - name: Setup Python for tox
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Install tox
+        run: pip install tox
+      - name: Setup Python ${{ matrix.py }} for test
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup test suite
+        run: tox -vv --notest
+      - name: Run test suite
+        run: tox --skip-pkg-install
+      - name: Upload coverage
+        uses: codecov/codecov-action@v2
+
+  check:
+    name: Check - Tox ${{ matrix.tox_env }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        tox_env:
+          - fix
+          - docs
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Setup Python for tox
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Install tox
+        run: pip install tox
+      - name: Setup test suite
+        run: tox -vv --notest -e ${{ matrix.tox_env }}
+      - name: Run test suite
+        run: tox --skip-pkg-install -e ${{ matrix.tox_env }}
+
+  publish:
+    name: Publish on PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    needs: [ test, check ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        run: pip install build
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build project
+        run: python -m build --sdist --wheel --outdir dist/ .
+      - name: Publish on PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
