@@ -15,6 +15,10 @@ maintainers = [
 dependencies = [
     "requests~=2.24"
 ]
+urls.Documentation = "https://vk.readthedocs.io"
+urls.Homepage = "https://github.com/voronind/vk"
+urls.Source = "https://github.com/voronind/vk"
+urls.Tracker = "https://github.com/voronind/vk/issues"
 readme = "README.md"
 keywords = ["vk.com", "api", "vk", "wrappper"]
 classifiers = [
