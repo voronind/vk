@@ -2,10 +2,7 @@ name: Check
 
 on:
   pull_request:
-    branches:
-
   push:
-    branches:
 
   schedule:
     - cron: "0 12 * * *"
@@ -66,3 +63,24 @@ jobs:
         run: tox -vv --notest -e ${{ matrix.tox_env }}
       - name: Run test suite
         run: tox --skip-pkg-install -e ${{ matrix.tox_env }}
+
+  publish:
+    name: Publish on PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+    needs: [ test, check ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Install dependencies
+        run: pip install build
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Build project
+        run: python -m build --sdist --wheel --outdir dist/ .
+      - name: Publish on PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}

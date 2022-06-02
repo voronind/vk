@@ -1,6 +1,5 @@
 from vk import __version__
 
-
 author = 'Dmitry Voronin'
 project = 'vk'
 copyright = '2015, Dmitry Voronin'
