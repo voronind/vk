@@ -18,7 +18,10 @@ class APIBase:
     CAPTCHA_URL = 'https://m.vk.com/captcha.php'
 
     def __new__(cls, *args, **kwargs):
-        method_common_params = {key: kwargs.pop(key) for key in tuple(kwargs) if key in cls.METHOD_COMMON_PARAMS}
+        method_common_params = {
+            key: kwargs.pop(key)
+            for key in tuple(kwargs) if key in cls.METHOD_COMMON_PARAMS
+        }
 
         api = object.__new__(cls)
         api.__init__(*args, **kwargs)
@@ -61,7 +64,7 @@ class APIBase:
                 return self.handle_api_error(request)
 
     def prepare_request(self, request):
-        request.method_params['access_token'] = self.access_token
+        request.method_params.setdefault('access_token', self.access_token)
 
     def get_access_token(self):
         raise NotImplementedError
@@ -89,7 +92,10 @@ class APIBase:
             - due to scope
         """
         logger.error('Authorization failed. Access token will be dropped')
+
+        del request.method_params['access_token']
         self.access_token = self.get_access_token()
+
         return self.send(request)
 
     def on_api_error(self, request):
@@ -243,7 +249,7 @@ class CommunityAPI(UserAPI):
 
     def prepare_request(self, request):
         group_id = request.method_params.get('group_id', self.default_group_id)
-        request.method_params['access_token'] = self.access_tokens[group_id]
+        request.method_params.setdefault('access_token', self.access_tokens[group_id])
 
 
 class InteractiveMixin:
