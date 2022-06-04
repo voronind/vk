@@ -16,7 +16,7 @@ def v():
 
 @pytest.fixture(scope='session')
 def access_token():
-    if 'VK_ACCESS_TOKEN' in os.environ:
+    if os.getenv('VK_ACCESS_TOKEN'):
         return os.environ['VK_ACCESS_TOKEN']
 
     pytest.skip('VK_ACCESS_TOKEN env var not defined')
