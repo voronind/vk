@@ -1,3 +1,5 @@
+import os
+
 import pytest
 import requests
 
@@ -9,8 +11,19 @@ def v():
     """
     Actual vk API version
     """
-    return '5.80'
+    return '5.131'
 
+
+@pytest.fixture(scope='session')
+def access_token():
+    if 'VK_ACCESS_TOKEN' in os.environ:
+        return os.environ['VK_ACCESS_TOKEN']
+
+    pytest.skip('VK_ACCESS_TOKEN env var not defined')
+
+
+# Mocking Requests leads to untraceability of performance
+# Should be replaced with real world VK requests
 
 class Attributable(object):
     def set_attrs(self, attributes):

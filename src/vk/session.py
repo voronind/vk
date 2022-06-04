@@ -66,9 +66,6 @@ class APIBase:
     def prepare_request(self, request):
         request.method_params.setdefault('access_token', self.access_token)
 
-    def get_access_token(self):
-        raise NotImplementedError
-
     def handle_api_error(self, request):
         logger.error('Handle API error: %s', request.api_error)
 
@@ -77,30 +74,14 @@ class APIBase:
 
         return api_error_handler(request)
 
-    def on_api_error_14(self, request):
-        """
-        14. Captcha needed
-        """
-        request.method_params['captcha_key'] = self.get_captcha_key(request)
-        request.method_params['captcha_sid'] = request.api_error.captcha_sid
-
-        return self.send(request)
-
-    def on_api_error_15(self, request):
-        """
-        15. Access denied
-            - due to scope
-        """
-        logger.error('Authorization failed. Access token will be dropped')
-
-        del request.method_params['access_token']
-        self.access_token = self.get_access_token()
-
-        return self.send(request)
-
     def on_api_error(self, request):
-        logger.error('API error: %s', request.api_error)
         raise request.api_error
+
+
+class API(APIBase):
+    def __init__(self, access_token, **kwargs):
+        super().__init__(**kwargs)
+        self.access_token = access_token
 
     def get_captcha_key(self, request):
         """
@@ -110,11 +91,14 @@ class APIBase:
         # request.api_error.captcha_img
         raise request.api_error
 
+    def on_api_error_14(self, request):
+        """
+        14. Captcha needed
+        """
+        request.method_params['captcha_key'] = self.get_captcha_key(request)
+        request.method_params['captcha_sid'] = request.api_error.captcha_sid
 
-class API(APIBase):
-    def __init__(self, access_token, **kwargs):
-        super().__init__(**kwargs)
-        self.access_token = access_token
+        return self.send(request)
 
 
 class UserAPI(APIBase):
@@ -219,6 +203,18 @@ class UserAPI(APIBase):
         self.expires_in = url_queries.get('expires_in')
         self.user_id = url_queries.get('user_id')
         return url_queries.get('access_token')
+
+    def on_api_error_15(self, request):
+        """
+        15. Access denied
+            - due to scope
+        """
+        logger.error('Authorization failed. Access token will be dropped')
+
+        del request.method_params['access_token']
+        self.access_token = self.get_access_token()
+
+        return self.send(request)
 
 
 class CommunityAPI(UserAPI):
