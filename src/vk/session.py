@@ -53,14 +53,15 @@ class APIBase:
         request.response = response_or_error
 
         if 'response' in response_or_error:
-            # todo Can we have error and response simultaneously
-            # for error in errors:
-            #     logger.warning(str(error))
+
+            for error_data in response_or_error.get('execute_errors', ()):
+                api_error = VkAPIError(error_data)
+                logger.warning('Execute "%s" error: %s', api_error.method, api_error)
+
             return response_or_error['response']
 
         elif 'error' in response_or_error:
-            api_error = VkAPIError(request.response['error'])
-            request.api_error = api_error
+            request.api_error = VkAPIError(request.response['error'])
             return self.handle_api_error(request)
 
     def prepare_request(self, request):  # noqa: U100

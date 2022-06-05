@@ -25,6 +25,7 @@ class VkAPIError(VkException):
     def __init__(self, error_data):
         super(VkAPIError, self).__init__()
         self.error_data = error_data
+        self.method = error_data.get('method')
         self.code = error_data.get('error_code')
         self.message = error_data.get('error_msg')
         self.request_params = self.get_pretty_request_params(error_data)
