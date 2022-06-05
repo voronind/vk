@@ -1,12 +1,14 @@
+import getpass
 import logging
-import re
 import urllib
+from json import loads
+from re import findall
 
 import requests
 
 from .api import APINamespace
 from .exceptions import VkAPIError, VkAuthError
-from .utils import json_iter_parse, stringify
+from .utils import stringify
 
 logger = logging.getLogger('vk')
 
@@ -47,27 +49,22 @@ class APIBase:
         # todo Replace with something less exceptional
         response.raise_for_status()
 
-        # TODO: there are may be 2 dicts in one JSON
-        # for example: "{'error': ...}{'response': ...}"
-        for response_or_error in json_iter_parse(response.text):
-            request.response = response_or_error
+        response_or_error = loads(response.text)
+        request.response = response_or_error
 
-            if 'response' in response_or_error:
-                # todo Can we have error and response simultaneously
-                # for error in errors:
-                #     logger.warning(str(error))
-                return response_or_error['response']
+        if 'response' in response_or_error:
+            # todo Can we have error and response simultaneously
+            # for error in errors:
+            #     logger.warning(str(error))
+            return response_or_error['response']
 
-            elif 'error' in response_or_error:
-                api_error = VkAPIError(request.response['error'])
-                request.api_error = api_error
-                return self.handle_api_error(request)
+        elif 'error' in response_or_error:
+            api_error = VkAPIError(request.response['error'])
+            request.api_error = api_error
+            return self.handle_api_error(request)
 
-    def prepare_request(self, request):
-        request.method_params.setdefault('access_token', self.access_token)
-
-    def get_access_token(self):
-        raise NotImplementedError
+    def prepare_request(self, request):  # noqa: U100
+        pass
 
     def handle_api_error(self, request):
         logger.error('Handle API error: %s', request.api_error)
@@ -76,6 +73,23 @@ class APIBase:
         api_error_handler = getattr(self, api_error_handler_name, self.on_api_error)
 
         return api_error_handler(request)
+
+    def on_api_error(self, request):
+        raise request.api_error
+
+
+class API(APIBase):
+    def __init__(self, access_token, **kwargs):
+        super().__init__(**kwargs)
+        self.access_token = access_token
+
+    def get_captcha_key(self, request):
+        """
+        Default behavior on CAPTCHA is to raise exception
+        Reload this in child
+        """
+        # request.api_error.captcha_img
+        raise request.api_error
 
     def on_api_error_14(self, request):
         """
@@ -86,42 +100,15 @@ class APIBase:
 
         return self.send(request)
 
-    def on_api_error_15(self, request):
-        """
-        15. Access denied
-            - due to scope
-        """
-        logger.error('Authorization failed. Access token will be dropped')
-
-        del request.method_params['access_token']
-        self.access_token = self.get_access_token()
-
-        return self.send(request)
-
-    def on_api_error(self, request):
-        logger.error('API error: %s', request.api_error)
-        raise request.api_error
-
-    def get_captcha_key(self, request):
-        """
-        Default behavior on CAPTCHA is to raise exception
-        Reload this in child
-        """
-        # request.api_error.captcha_img
-        raise request.api_error
-
-
-class API(APIBase):
-    def __init__(self, access_token, **kwargs):
-        super().__init__(**kwargs)
-        self.access_token = access_token
+    def prepare_request(self, request):
+        request.method_params.setdefault('access_token', self.access_token)
 
 
 class UserAPI(APIBase):
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login='', user_password='', app_id=None, scope='offline', **kwargs):
+    def __init__(self, user_login=None, user_password=None, app_id=None, scope='offline', **kwargs):
         super().__init__(**kwargs)
 
         self.user_login = user_login
@@ -133,7 +120,7 @@ class UserAPI(APIBase):
 
     @staticmethod
     def get_form_action(response):
-        form_action = re.findall(r'<form(?= ).* action="(.+)"', response.text)
+        form_action = findall(r'<form(?= ).* action="(.+)"', response.text)
         if form_action:
             return form_action[0]
         else:
@@ -220,6 +207,18 @@ class UserAPI(APIBase):
         self.user_id = url_queries.get('user_id')
         return url_queries.get('access_token')
 
+    def on_api_error_15(self, request):
+        """
+        15. Access denied
+            - due to scope
+        """
+        logger.error('Authorization failed. Access token will be dropped')
+
+        del request.method_params['access_token']
+        self.access_token = self.get_access_token()
+
+        return self.send(request)
+
 
 class CommunityAPI(UserAPI):
     def __init__(self, *args, **kwargs):
@@ -254,34 +253,39 @@ class CommunityAPI(UserAPI):
 
 class InteractiveMixin:
 
-    def get_user_login(self):
-        user_login = input('VK user login: ')
-        return user_login.strip()
+    def __setattr__(self, name, value):
+        if name in dir(self.__class__) and not value:
+            return
 
-    def get_user_password(self):
-        import getpass
+        object.__setattr__(self, name, value)
 
-        user_password = getpass.getpass('VK user password: ')
-        return user_password
+    @property
+    def user_login(self):
+        if not hasattr(self, '_cached_user_login'):
+            self._cached_user_login = input('VK user login: ')
+        return self._cached_user_login
 
-    def get_access_token(self):
-        logger.debug('InteractiveMixin.get_access_token()')
-        access_token = super().get_access_token()
-        if not access_token:
-            access_token = input('VK API access token: ')
-        return access_token
+    @property
+    def user_password(self):
+        if not hasattr(self, '_cached_user_password'):
+            self._cached_user_password = getpass.getpass('VK user password: ')
+        return self._cached_user_password
+
+    @property
+    def access_token(self):
+        if not hasattr(self, '_cached_access_token'):
+            self._cached_access_token = input('VK API access token: ')
+        return self._cached_access_token
 
     def get_captcha_key(self, captcha_image_url):
         """
         Read CAPTCHA key from shell
         """
         print('Open CAPTCHA image url: ', captcha_image_url)
-        captcha_key = input('Enter CAPTCHA key: ')
-        return captcha_key
+        return input('Enter CAPTCHA key: ')
 
     def get_auth_check_code(self):
         """
         Read Auth code from shell
         """
-        auth_check_code = input('Auth check code: ')
-        return auth_check_code.strip()
+        return input('Auth check code: ')

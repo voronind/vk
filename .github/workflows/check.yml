@@ -5,7 +5,7 @@ on:
   push:
 
   schedule:
-    - cron: "0 12 * * *"
+    - cron: "0 12 */2 * *"
 
 jobs:
   test:
@@ -38,6 +38,8 @@ jobs:
         run: tox -vv --notest
       - name: Run test suite
         run: tox --skip-pkg-install
+        env:
+          VK_ACCESS_TOKEN: ${{ secrets.VK_ACCESS_TOKEN }}
       - name: Upload coverage
         uses: codecov/codecov-action@v2
 
