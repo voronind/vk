@@ -1,12 +1,13 @@
 import logging
-import re
 import urllib
+from json import loads
+from re import findall
 
 import requests
 
 from .api import APINamespace
 from .exceptions import VkAPIError, VkAuthError
-from .utils import json_iter_parse, stringify
+from .utils import stringify
 
 logger = logging.getLogger('vk')
 
@@ -47,24 +48,22 @@ class APIBase:
         # todo Replace with something less exceptional
         response.raise_for_status()
 
-        # TODO: there are may be 2 dicts in one JSON
-        # for example: "{'error': ...}{'response': ...}"
-        for response_or_error in json_iter_parse(response.text):
-            request.response = response_or_error
+        response_or_error = loads(response.text)
+        request.response = response_or_error
 
-            if 'response' in response_or_error:
-                # todo Can we have error and response simultaneously
-                # for error in errors:
-                #     logger.warning(str(error))
-                return response_or_error['response']
+        if 'response' in response_or_error:
+            # todo Can we have error and response simultaneously
+            # for error in errors:
+            #     logger.warning(str(error))
+            return response_or_error['response']
 
-            elif 'error' in response_or_error:
-                api_error = VkAPIError(request.response['error'])
-                request.api_error = api_error
-                return self.handle_api_error(request)
+        elif 'error' in response_or_error:
+            api_error = VkAPIError(request.response['error'])
+            request.api_error = api_error
+            return self.handle_api_error(request)
 
-    def prepare_request(self, request):
-        request.method_params.setdefault('access_token', self.access_token)
+    def prepare_request(self, request):  # noqa: U100
+        pass
 
     def handle_api_error(self, request):
         logger.error('Handle API error: %s', request.api_error)
@@ -100,6 +99,9 @@ class API(APIBase):
 
         return self.send(request)
 
+    def prepare_request(self, request):
+        request.method_params.setdefault('access_token', self.access_token)
+
 
 class UserAPI(APIBase):
     LOGIN_URL = 'https://m.vk.com'
@@ -117,7 +119,7 @@ class UserAPI(APIBase):
 
     @staticmethod
     def get_form_action(response):
-        form_action = re.findall(r'<form(?= ).* action="(.+)"', response.text)
+        form_action = findall(r'<form(?= ).* action="(.+)"', response.text)
         if form_action:
             return form_action[0]
         else:
