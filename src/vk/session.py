@@ -1,3 +1,4 @@
+import getpass
 import logging
 import urllib
 from json import loads
@@ -107,7 +108,7 @@ class UserAPI(APIBase):
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login='', user_password='', app_id=None, scope='offline', **kwargs):
+    def __init__(self, user_login=None, user_password=None, app_id=None, scope='offline', **kwargs):
         super().__init__(**kwargs)
 
         self.user_login = user_login
@@ -252,34 +253,39 @@ class CommunityAPI(UserAPI):
 
 class InteractiveMixin:
 
-    def get_user_login(self):
-        user_login = input('VK user login: ')
-        return user_login.strip()
+    def __setattr__(self, name, value):
+        if name in dir(self.__class__) and not value:
+            return
 
-    def get_user_password(self):
-        import getpass
+        object.__setattr__(self, name, value)
 
-        user_password = getpass.getpass('VK user password: ')
-        return user_password
+    @property
+    def user_login(self):
+        if not hasattr(self, '_cached_user_login'):
+            self._cached_user_login = input('VK user login: ')
+        return self._cached_user_login
 
-    def get_access_token(self):
-        logger.debug('InteractiveMixin.get_access_token()')
-        access_token = super().get_access_token()
-        if not access_token:
-            access_token = input('VK API access token: ')
-        return access_token
+    @property
+    def user_password(self):
+        if not hasattr(self, '_cached_user_password'):
+            self._cached_user_password = getpass.getpass('VK user password: ')
+        return self._cached_user_password
+
+    @property
+    def access_token(self):
+        if not hasattr(self, '_cached_access_token'):
+            self._cached_access_token = input('VK API access token: ')
+        return self._cached_access_token
 
     def get_captcha_key(self, captcha_image_url):
         """
         Read CAPTCHA key from shell
         """
         print('Open CAPTCHA image url: ', captcha_image_url)
-        captcha_key = input('Enter CAPTCHA key: ')
-        return captcha_key
+        return input('Enter CAPTCHA key: ')
 
     def get_auth_check_code(self):
         """
         Read Auth code from shell
         """
-        auth_check_code = input('Auth check code: ')
-        return auth_check_code.strip()
+        return input('Auth check code: ')
