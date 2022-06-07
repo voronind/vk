@@ -1,34 +1,26 @@
-
 Installation
 ============
 
-Project is available on PyPI_ and Github_:
+Project is available on PyPI_ and Github_ and can be easily installed using pip
 
 
-Install via pip
----------------
+Install from PyPI
+-----------------
 
 .. code:: bash
 
     pip install vk
 
 
-Install via setuptools
-----------------------
+Install from Github
+-------------------
 
-Get package by one of these ways and install
-
-- Download from `PyPI page`_
-- Clone `Git repo`_
-- Download `Github release <https://github.com/voronind/vk/releases>`_
+.. warning::
+    Although the version on GitHub is the latest, it may not be stable!
 
 .. code:: bash
 
-    python setup.py install
-
-
-.. _PyPI page: PyPI_
-.. _Git repo: Github_
+    pip install git+https://github.com/voronind/vk
 
 .. _PyPI: https://pypi.org/project/vk/
 .. _Github: https://github.com/voronind/vk
