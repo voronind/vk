@@ -10,7 +10,7 @@ from .api import APINamespace
 from .exceptions import VkAPIError, VkAuthError
 from .utils import stringify
 
-logger = logging.getLogger('vk')
+logger = logging.getLogger(__name__)
 
 
 class APIBase:

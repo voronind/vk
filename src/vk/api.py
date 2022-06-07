@@ -1,8 +1,4 @@
-import logging
-
 from vk.utils import stringify_values
-
-logger = logging.getLogger('vk')
 
 
 class APINamespace:
