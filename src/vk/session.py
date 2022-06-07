@@ -80,6 +80,25 @@ class APIBase:
 
 
 class API(APIBase):
+    """The simplest VK API implementation. Can process `any API method <https://dev.vk.com/method>`__
+    that can be called from the server
+
+    Args:
+        access_token (str): Access token for API requests obtained by any means
+            (see :ref:`documentation <Getting access>`)
+        **kwargs (any): Additional parameters, which will be passed to each request.
+            The most useful is `v` - API version and `lang` - language of responses
+            (see :ref:`documentation <Making API request>`)
+
+    Example:
+        .. code-block:: python
+
+            >>> import vk
+            >>> api = vk.API(access_token='...', v='5.131')
+            >>> print(api.users.get(user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+    """
+
     def __init__(self, access_token, **kwargs):
         super().__init__(**kwargs)
         self.access_token = access_token
@@ -105,19 +124,44 @@ class API(APIBase):
         request.method_params.setdefault('access_token', self.access_token)
 
 
-class UserAPI(APIBase):
+class UserAPI(API):
+    """Subclass of :class:`vk.session.API`. It differs only in that it can get access token
+    using app id and user credentials (Implicit flow authorization).
+
+    Args:
+        user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
+        user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
+        app_id (Optional[int]): App ID
+        scope (Union[str, int, None]): Access rights you need. Can be passed comma-separated
+            list of scopes, or bitmask sum all of them (see `official documentation
+            <https://dev.vk.com/reference/access-rights>`__). Defaults to 'offline'
+        **kwargs (any): Additional parameters, which will be passed to each request.
+            The most useful is `v` - API version and `lang` - language of responses
+            (see :ref:`documentation <Making API request>`)
+
+    Example:
+        .. code-block:: python
+
+            >>> import vk
+            >>> api = vk.UserAPI(
+            ...     user_login='...',
+            ...     user_password='...',
+            ...     app_id=123456,
+            ...     scopes='offline,wall'
+            ... )
+            >>> print(api.users.get(user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+    """
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
     def __init__(self, user_login=None, user_password=None, app_id=None, scope='offline', **kwargs):
-        super().__init__(**kwargs)
-
         self.user_login = user_login
         self.user_password = user_password
         self.app_id = app_id
         self.scope = scope
 
-        self.access_token = self.get_access_token()
+        super().__init__(self.get_access_token(), **kwargs)
 
     @staticmethod
     def get_form_action(response):
@@ -222,6 +266,8 @@ class UserAPI(APIBase):
 
 
 class CommunityAPI(UserAPI):
+    """TODO"""
+
     def __init__(self, *args, **kwargs):
         self.group_ids = kwargs.pop('group_ids', None)
         self.default_group_id = None
