@@ -76,25 +76,61 @@ class APIBase:
         return api_error_handler(request)
 
     def on_api_error(self, request):
+        """Default API error handler that handles all errros and raises them. You can add a
+        handler for a specific error by redefining it in your class and appending the error
+        code to the method name. In this case, the redefined method will be called instead of
+        :meth:`on_api_error`. The :exc:`vk.exceptions.VkAPIError` object can be obtained via
+        ``request.api_error``
+
+        Args:
+            request (vk.api.APIRequest): API request object
+
+        Example:
+            .. code-block:: python
+
+                import vk
+
+                class API(vk.APIBase):
+                    def on_api_error_1(self, request):
+                        print('An unknown error has occurred :(')
+
+                api = API()
+        """
         raise request.api_error
 
 
 class API(APIBase):
-    def __init__(self, access_token, **kwargs):
+    """The simplest VK API implementation. Can process `any API method <https://dev.vk.com/method>`__
+    that can be called from the server
+
+    Args:
+        access_token (Optional[str]): Access token for API requests obtained by any means
+            (see :ref:`documentation <Getting access>`). Optional when using :class:`InteractiveMixin`
+        **kwargs (any): Additional parameters, which will be passed to each request.
+            The most useful is `v` - API version and `lang` - language of responses
+            (see :ref:`documentation <Making API request>`)
+
+    Example:
+        .. code-block:: python
+
+            >>> import vk
+            >>> api = vk.API(access_token='...', v='5.131')
+            >>> print(api.users.get(user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+    """
+
+    def __init__(self, access_token=None, **kwargs):
         super().__init__(**kwargs)
         self.access_token = access_token
 
     def get_captcha_key(self, request):
+        """Default behavior on CAPTCHA is to raise exception. Redefine in a subclass
         """
-        Default behavior on CAPTCHA is to raise exception
-        Reload this in child
-        """
-        # request.api_error.captcha_img
         raise request.api_error
 
     def on_api_error_14(self, request):
-        """
-        14. Captcha needed
+        """Captcha error handler. Retrieves captcha via :meth:`API.get_captcha_key` and
+        resends request
         """
         request.method_params['captcha_key'] = self.get_captcha_key(request)
         request.method_params['captcha_sid'] = request.api_error.captcha_sid
@@ -105,19 +141,45 @@ class API(APIBase):
         request.method_params.setdefault('access_token', self.access_token)
 
 
-class UserAPI(APIBase):
+class UserAPI(API):
+    """Subclass of :class:`vk.session.API`. It differs only in that it can get access token
+    using app id and user credentials (Implicit flow authorization).
+
+    Args:
+        user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
+        user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
+        app_id (Optional[int]): App ID
+        scope (Optional[Union[str, int]]): Access rights you need. Can be passed
+            comma-separated list of scopes, or bitmask sum all of them (see `official
+            documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
+            to 'offline'
+        **kwargs (any): Additional parameters, which will be passed to each request.
+            The most useful is `v` - API version and `lang` - language of responses
+            (see :ref:`documentation <Making API request>`)
+
+    Example:
+        .. code-block:: python
+
+            >>> import vk
+            >>> api = vk.UserAPI(
+            ...     user_login='...',
+            ...     user_password='...',
+            ...     app_id=123456,
+            ...     scope='offline,wall'
+            ... )
+            >>> print(api.users.get(user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+    """
     LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
     def __init__(self, user_login=None, user_password=None, app_id=None, scope='offline', **kwargs):
-        super().__init__(**kwargs)
-
         self.user_login = user_login
         self.user_password = user_password
         self.app_id = app_id
         self.scope = scope
 
-        self.access_token = self.get_access_token()
+        super().__init__(self.get_access_token(), **kwargs)
 
     @staticmethod
     def get_form_action(response):
@@ -222,6 +284,8 @@ class UserAPI(APIBase):
 
 
 class CommunityAPI(UserAPI):
+    """TODO"""
+
     def __init__(self, *args, **kwargs):
         self.group_ids = kwargs.pop('group_ids', None)
         self.default_group_id = None
@@ -253,6 +317,21 @@ class CommunityAPI(UserAPI):
 
 
 class InteractiveMixin:
+    """Mixin that receives the necessary data from the console
+
+    Example:
+        .. code-block:: python
+
+            import vk
+            from vk.session import InteractiveMixin
+
+            class API(InteractiveMixin, vk.API):
+                pass
+
+            api = API()
+
+            # The input will appear: `VK API access token: `
+    """
 
     def __setattr__(self, name, value):
         if name in dir(self.__class__) and not value:

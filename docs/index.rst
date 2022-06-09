@@ -1,10 +1,7 @@
-.. Vk documentation master file, created by
-   sphinx-quickstart on Tue Mar  3 15:53:30 2015.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to Vk's documentation!
+Welcome to vk's documentation!
 ==============================
+
+**VK** library is a `vk.com <vk.com>`__ (the largest Russian social network) python API wrapper
 
 Contents:
 
@@ -14,7 +11,8 @@ Contents:
    installation
    vk-api
    usage
-   customizing
+   advanced-usage
+   contribution
 
 
 Indices and tables
@@ -23,3 +21,5 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+..

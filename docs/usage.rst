@@ -1,55 +1,38 @@
-
 Usage
 =====
 
 API method request example
 --------------------------
 
-Get user info with **user id** equal to 1.
+Several types of APIs are implemented in this module. Each of them is needed for certain purposes, but they are all united by the way of accessing the VK API. After initializing the class, you can call any method. Let's try to figure out what's going on here:
 
-`vk.API` class object is used to create API request and send it via `vk.Session` class object.
-Session object is used by API object to manage access token, send API request, get JSON response,
-parse and return it.
+.. code-block:: python
 
-API object `api` attribute getting defines vk.com API method name.
-Call of gotten method sends request and returns parsed JSON response.
-Keyword args becomes specified method params.
+    >>> import vk
+    >>> api = vk.API(access_token='...', v='5.131')
+    >>> print(api.users.get(user_ids=1))
+    [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
 
-This example will send POST request to https://api.vk.com/method/users.get with "user_ids=1" query string.
+
+It gets user info with **user id** equal to **1**. :class:`vk.api.APINamespace` object is used to create API request and send it via original :class:`vk.session.API` class object (or another), which in turn, manages access token, sends API request, gets JSON response, parses and returns it.
+
+| More formally, this forms the following POST request to the VK API:
+| https://api.vk.com/method/users.get?user_ids=1&access_token=...&v=5.131
+
 
 vk.API
 ------
 
-`vk.API` gets Session or subclass object as first argument,
-\**kwargs as API method default args and `timeout` kwarg.
-See https://vk.com/dev/api_requests for full list of common args.
-The most useful is `v` - API version and `lang` - language of responses.
-
-All API methods that can be called from server should be supported.
-See https://vk.com/dev/methods for detailed API help.
+.. autoclass:: vk.session.API
 
 
-vk.Session
+vk.UserAPI
 ----------
 
-`vk.Session` gets optional `access_token` argument.
-It will send access token with every API request after first "Autorization failed" error.
-`Session` class can use only ready access token and raises error if can't get it.
+.. autoclass:: vk.session.UserAPI
 
 
-vk.AuthSession
---------------
+vk.CommunityAPI
+---------------
 
-It's `vk.Session` subclass. Can get access token using app id and user credentials.
-
-
-Debugging
----------
-
-To understand that happens you can enable debug mode.
-
-.. code:: python
-
-    vk.logger.setLevel('DEBUG')
-
-`vk.logger` is Python standard library `logging.Logger` instance.
+.. autoclass:: vk.session.CommunityAPI
