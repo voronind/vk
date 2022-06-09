@@ -11,6 +11,7 @@ Contents:
    installation
    vk-api
    usage
+   advanced-usage
 
 
 Indices and tables
