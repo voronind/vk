@@ -8,7 +8,7 @@ Errors handling
 The easiest way to catch an error is using the *try-except* statement:
 
 .. code-block:: python
-    
+
     import vk
     from vk.exceptions import VkAPIError
 

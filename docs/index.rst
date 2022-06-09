@@ -12,6 +12,7 @@ Contents:
    vk-api
    usage
    advanced-usage
+   contribution
 
 
 Indices and tables
