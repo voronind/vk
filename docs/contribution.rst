@@ -70,4 +70,3 @@ It's very useful for the module's debug to include logs to better understand wha
 
     logging.basicConfig()
     logging.getLogger('vk').setLevel(logging.DEBUG)
-
