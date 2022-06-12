@@ -30,10 +30,11 @@ class APIBase:
 
         return APINamespace(api, method_common_params)
 
-    def __init__(self, timeout=10):
+    def __init__(self, timeout=10, proxy=None):
         self.timeout = timeout
 
         self.session = requests.Session()
+        self.session.proxies = {'http': proxy, 'https': proxy}
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
