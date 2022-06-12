@@ -4,8 +4,8 @@ Contribution
 This section will be useful for first-time contributors
 
 
-Environment
------------
+Setup environment
+-----------------
 
 For setup/build/test we use `tox <https://tox.wiki/en/latest/>`__, so you need to install it first
 
@@ -29,8 +29,8 @@ To prevent unformatted code from commit, we recommend adding a pre-commit hook o
     pre-commit install
 
 
-Targets
--------
+Tox targets
+-----------
 
 .. code-block:: bash
 

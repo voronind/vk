@@ -41,7 +41,7 @@ For a simpler definition of the type of error, you can use the :class:`vk.except
     import vk
     from vk.exceptions import ErrorCodes, VkAPIError
 
-    api = vk.API(access_token='Invalid access token')
+    api = vk.API(access_token='Invalid access token', v='5.131')
 
     try:
         user = api.users.get(user_ids=1)
@@ -63,6 +63,22 @@ For some popular errors, the :class:`vk.session.API` already has its own handler
 .. automethod:: vk.session.API.on_api_error_14
 
 .. automethod:: vk.session.API.get_captcha_key
+
+
+Connection parameters
+---------------------
+
+You can specify additional connection parameters in each API implementation: *timeout*, which specifies the time to complete the request (default is **10**) and *proxy*, which specifies which proxy to use (default is **None**).
+
+.. code-block:: python
+
+    import vk
+
+    api = vk.API(
+        ...
+        timeout=5,
+        proxy='socks5://127.0.0.1:9050'
+    )
 
 
 Interactive

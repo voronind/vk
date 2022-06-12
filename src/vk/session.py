@@ -166,7 +166,8 @@ class UserAPI(API):
             ...     user_login='...',
             ...     user_password='...',
             ...     app_id=123456,
-            ...     scope='offline,wall'
+            ...     scope='offline,wall',
+            ...     v='5.131'
             ... )
             >>> print(api.users.get(user_ids=1))
             [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
