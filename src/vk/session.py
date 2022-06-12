@@ -30,10 +30,11 @@ class APIBase:
 
         return APINamespace(api, method_common_params)
 
-    def __init__(self, timeout=10):
+    def __init__(self, timeout=10, proxy=None):
         self.timeout = timeout
 
         self.session = requests.Session()
+        self.session.proxies = {'http': proxy, 'https': proxy}
         self.session.headers['Accept'] = 'application/json'
         self.session.headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
@@ -165,7 +166,8 @@ class UserAPI(API):
             ...     user_login='...',
             ...     user_password='...',
             ...     app_id=123456,
-            ...     scope='offline,wall'
+            ...     scope='offline,wall',
+            ...     v='5.131'
             ... )
             >>> print(api.users.get(user_ids=1))
             [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
