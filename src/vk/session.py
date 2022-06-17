@@ -244,7 +244,7 @@ class UserAPI(API):
             }
         ).json()['access_token']
 
-    def auth_failed(self, response):
+    def auth_failed(self, auth_session, response):  # noqa: U100
         logger.error(f'Authorization failed: unknown error. response_params = {response}')
         raise VkAuthError(f'Authorization failed: unknown error. response_params = {response}')
 
