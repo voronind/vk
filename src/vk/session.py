@@ -7,7 +7,7 @@ from re import findall
 import requests
 
 from .api import APINamespace
-from .exceptions import VkAPIError, VkAuthError
+from .exceptions import ErrorCodes, VkAPIError, VkAuthError
 from .utils import stringify
 
 logger = logging.getLogger(__name__)
@@ -123,16 +123,16 @@ class API(APIBase):
         super().__init__(**kwargs)
         self.access_token = access_token
 
-    def get_captcha_key(self, request):
+    def get_captcha_key(self, api_error):
         """Default behavior on CAPTCHA is to raise exception. Redefine in a subclass
         """
-        raise request.api_error
+        raise api_error
 
     def on_api_error_14(self, request):
         """Captcha error handler. Retrieves captcha via :meth:`API.get_captcha_key` and
         resends request
         """
-        request.method_params['captcha_key'] = self.get_captcha_key(request)
+        request.method_params['captcha_key'] = self.get_captcha_key(request.api_error)
         request.method_params['captcha_sid'] = request.api_error.captcha_sid
 
         return self.send(request)
@@ -235,11 +235,19 @@ class UserAPI(API):
         return self._process_auth_url_queries(url_queries)
 
     def auth_captcha_is_needed(self, auth_session, response):
+        error_data = {
+            'error_code': ErrorCodes.CAPTCHA_NEEDED,
+            'error_msg': 'Captcha error occured during authorization',
+            'captcha_sid': response['captcha_sid'],
+            'captcha_img': response['captcha_img']
+        }
+        error = VkAPIError(error_data)
+
         return auth_session.post(
             self.AUTHORIZE_URL,
             params={
-                'captcha_sid': response['captcha_sid'],
-                'captcha_img': self.get_captcha_key(response['captcha_img']),
+                'captcha_sid': error.captcha_sid,
+                'captcha_img': self.get_captcha_key(error),
                 **self._get_auth_params()
             }
         ).json()['access_token']
@@ -356,11 +364,11 @@ class InteractiveMixin:
             self._cached_access_token = input('VK API access token: ')
         return self._cached_access_token
 
-    def get_captcha_key(self, captcha_image_url):
+    def get_captcha_key(self, api_error):
         """
         Read CAPTCHA key from shell
         """
-        print('Open CAPTCHA image url: ', captcha_image_url)
+        print('Open CAPTCHA image url: ', api_error.captcha_img)
         return input('Enter CAPTCHA key: ')
 
     def get_auth_check_code(self):

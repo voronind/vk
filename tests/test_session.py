@@ -1,5 +1,6 @@
 import logging
 from io import StringIO
+from os import urandom
 
 import pytest
 
@@ -42,7 +43,7 @@ def test_user_api_durov(user_api):
 
 def test_user_api_invalid_credentials():
     with pytest.raises(VkAuthError, match=r'username_or_password_is_incorrect'):
-        UserAPI('foo', 'bar')
+        UserAPI(urandom(4).hex(), urandom(4).hex())
 
 
 def test_interactive_mixin(monkeypatch):
@@ -61,7 +62,11 @@ def test_interactive_mixin(monkeypatch):
     assert mixin.access_token == 'test_access_token'
 
     monkeypatch.setattr('sys.stdin', StringIO('SuperCaptcha'))
-    assert mixin.get_captcha_key('http://example.com') == 'SuperCaptcha'
+
+    class Error:
+        captcha_img = 'http://example.com'
+
+    assert mixin.get_captcha_key(Error()) == 'SuperCaptcha'
 
     monkeypatch.setattr('sys.stdin', StringIO('123789456'))
     assert mixin.get_auth_check_code() == '123789456'
