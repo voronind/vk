@@ -24,9 +24,9 @@ pip install vk
 
 ```python
 >>> import vk
->>> api = vk.API(access_token='...')
+>>> api = vk.API(access_token='...', v='5.131')
 >>> api.users.get(user_ids=1)
-[{'first_name': 'Pavel', 'last_name': 'Durov', 'id': 1}]
+[{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
 ```
 
 See official VK [documentation](https://dev.vk.com/method) for detailed API guide.

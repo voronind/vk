@@ -125,6 +125,9 @@ class API(APIBase):
 
     def get_captcha_key(self, api_error):
         """Default behavior on CAPTCHA is to raise exception. Redefine in a subclass
+
+        Args:
+            api_error (vk.exceptions.VkAPIError): Captcha error that occurred
         """
         raise api_error
 
@@ -143,12 +146,19 @@ class API(APIBase):
 
 class UserAPI(API):
     """Subclass of :class:`vk.session.API`. It differs only in that it can get access token
-    using app id and user credentials (Implicit flow authorization).
+    using user credentials (through `Direct authorization <https://dev.vk.com/api/direct-auth>`__).
+
+    See also:
+        `Necessary data <https://gist.github.com/YariKartoshe4ka/02a0f2f49efdac06c423eca5661cfc36>`__
+        (**client_id** and **client_secret**) from other official applications
+
 
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
         user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
-        app_id (Optional[int]): App ID
+        client_id (Optional[int]): ID of the official application, defaults to *"VK for Android"* app ID
+        client_secret (Optional[str]): Client secret of the official application, defaults to client
+            secret of *"VK for Android"* app
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
             documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
@@ -164,7 +174,6 @@ class UserAPI(API):
             >>> api = vk.UserAPI(
             ...     user_login='...',
             ...     user_password='...',
-            ...     app_id=123456,
             ...     scope='offline,wall',
             ...     v='5.131'
             ... )
@@ -287,7 +296,7 @@ class UserAPI(API):
 
 
 class CommunityAPI(UserAPI):
-    """TODO"""
+    """needs writing"""
 
     def __init__(self, *args, **kwargs):
         self.group_ids = kwargs.pop('group_ids', None)
