@@ -67,12 +67,11 @@ def test_interactive_mixin(monkeypatch):
     assert mixin.get_auth_check_code() == '123789456'
 
 
-def test_interactive_mixin_mixed(monkeypatch, user_login, user_password, v, lang):
-    class InteractiveAPI(InteractiveMixin, UserAPI):
+def test_interactive_mixin_mixed(monkeypatch, access_token, v, lang):
+    class InteractiveAPI(InteractiveMixin, API):
         pass
 
-    monkeypatch.setattr('sys.stdin', StringIO(user_login))
-    monkeypatch.setattr('getpass.getpass', lambda *args, **kwargs: user_password)  # noqa: U100
+    monkeypatch.setattr('sys.stdin', StringIO(access_token))
 
     api = InteractiveAPI(v=v, lang=lang)
 
