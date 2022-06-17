@@ -1,27 +1,48 @@
-import logging
-
 import pytest
 
-from vk import API
+from vk.api import APIMethod, APINamespace, APIRequest
 
 
-@pytest.fixture
-def api(access_token, v):
-    return API(access_token, v=v, lang='en')
+class APISessionMock:
+    def send(self, request):
+        return request
 
 
-def test_durov(api):
-    users = api.users.get(user_ids=1)
-    assert users[0]['last_name'] == 'Durov'
+@pytest.fixture(scope='module')
+def api_namespace():
+    return APINamespace(APISessionMock(), {'param': 'value'})
 
 
-def test_execute(caplog, api):
-    with caplog.at_level(logging.WARNING, logger='vk'):
-        api.execute(code='var x = API.storage.get(); '
-                         'return API.users.get({user_ids: 1});')
+def test_api_namespace_getattr(api_namespace):
+    assert isinstance(api_namespace.some_method, APIMethod)
+    assert api_namespace.some_method._method == 'some_method'
 
-    assert len(caplog.records) == 1
 
-    log = caplog.records[0]
-    assert log.levelno == logging.WARNING
-    assert 'Execute "storage.get" error' in log.message
+def test_api_namespace_call(api_namespace):
+    assert isinstance(api_namespace('some_method'), APIMethod)
+    assert api_namespace('some_method')._method == 'some_method'
+
+
+def test_method_getattr(api_namespace):
+    assert isinstance(api_namespace.method.some_method, APIMethod)
+    assert api_namespace.method.some_method._method == 'method.some_method'
+
+
+def test_method_call(api_namespace):
+    request = api_namespace.method()
+
+    assert isinstance(request, APIRequest)
+    assert request.method == 'method'
+    assert request.method_params == {'param': 'value'}
+
+
+def test_params_merging(api_namespace):
+    request = api_namespace.method(param2='value2')
+
+    assert request.method_params == {'param': 'value', 'param2': 'value2'}
+
+
+def test_params_overriding(api_namespace):
+    request = api_namespace.method(param='new-value')
+
+    assert request.method_params == {'param': 'new-value'}
