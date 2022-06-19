@@ -222,6 +222,10 @@ class UserAPI(API):
     def login(self, auth_session):
         # Get login page
         login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
+
+        if not login_page_response.ok and login_page_response.status_code == 401:
+            raise VkAuthError(login_page_response.json()['error_description'])
+
         # Get login form action
         login_action = self._get_form_action(login_page_response)
         # Login using user credentials
