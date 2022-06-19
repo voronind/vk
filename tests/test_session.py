@@ -1,5 +1,6 @@
 import logging
 from io import StringIO
+from os import urandom
 
 import pytest
 
@@ -42,10 +43,10 @@ def test_user_api_durov(user_api):
 
 def test_user_api_auth_errors():
     with pytest.raises(VkAuthError, match=r'client_id is incorrect'):
-        UserAPI('foo', 'bar', None)
+        UserAPI(urandom(4).hex(), urandom(4).hex(), None)
 
     with pytest.raises(VkAuthError, match=r'Login error \(e.g. incorrect password\)'):
-        UserAPI('foo', 'bar')
+        UserAPI(urandom(4).hex(), urandom(4).hex())
 
 
 def test_interactive_mixin(monkeypatch):
