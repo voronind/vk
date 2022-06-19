@@ -57,15 +57,6 @@ Since some test suites use real calls to the VK API, you should create the neces
       - Access token for VK API. We reccomend to use community token, because it doesn't have an expiration date
       - Create your community, go to its settings (API section), create API key with messages scopes
 
-    * - VK_USER_LOGIN
-      - Login from the VK account. For rare tests, you can use your account, otherwise we recommend to register a test one
-      - \-
-
-    * - VK_USER_PASSWORD
-      - Password from the VK account. For rare tests, you can use your account, otherwise we recommend to register a test one
-      - \-
-
-
 
 Logging
 -------
