@@ -175,7 +175,7 @@ class UserAPI(API):
     LOGIN_URL = 'https://oauth.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login=None, user_password=None, app_id=2274003, scope='offline', **kwargs):
+    def __init__(self, user_login=None, user_password=None, app_id=2685278, scope='offline', **kwargs):
         self.user_login = user_login
         self.user_password = user_password
         self.app_id = app_id
@@ -352,7 +352,11 @@ class InteractiveMixin:
         if name in dir(self.__class__) and not value:
             return
 
-        object.__setattr__(self, name, value)
+        elif name in filter(property, dir(self.__class__)):
+            object.__setattr__(self, '_cached_' + name, value)
+
+        else:
+            object.__setattr__(self, name, value)
 
     @property
     def user_login(self):
