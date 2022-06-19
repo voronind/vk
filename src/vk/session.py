@@ -125,7 +125,7 @@ class API(APIBase):
         self.access_token = access_token
 
     def get_captcha_key(self, request):
-        """Default behavior on CAPTCHA is to raise exception. Redefine in a subclass
+        """Default behavior on CAPTCHA is to raise exception, redefine in a subclass
         """
         raise request.api_error
 
@@ -144,12 +144,14 @@ class API(APIBase):
 
 class UserAPI(API):
     """Subclass of :class:`vk.session.API`. It differs only in that it can get access token
-    using app id and user credentials (Implicit flow authorization).
+    using user credentials (`Implicit flow authorization
+    <https://dev.vk.com/api/access-token/implicit-flow-user>`__).
 
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
         user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
-        app_id (Optional[int]): App ID
+        app_id (Optional[int]): ID of the application to authorize with, defaults to
+            "Kate Moblie" app ID
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
             documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
@@ -165,7 +167,6 @@ class UserAPI(API):
             >>> api = vk.UserAPI(
             ...     user_login='...',
             ...     user_password='...',
-            ...     app_id=123456,
             ...     scope='offline,wall',
             ...     v='5.131'
             ... )
@@ -223,8 +224,11 @@ class UserAPI(API):
         # Get login page
         login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
 
-        if not login_page_response.ok and login_page_response.status_code == 401:
-            raise VkAuthError(login_page_response.json()['error_description'])
+        # Check if params for OAuth is enough
+        if not login_page_response.ok:
+            if login_page_response.status_code == 401:
+                raise VkAuthError(login_page_response.json()['error_description'])
+            login_page_response.raise_for_status()
 
         # Get login form action
         login_action = self._get_form_action(login_page_response)
@@ -247,10 +251,17 @@ class UserAPI(API):
 
         raise VkAuthError('Login error (e.g. incorrect password)')
 
-    def auth_captcha_is_needed(self, auth_session, login_response):
+    def auth_captcha_is_needed(self, auth_session, login_response):  # noqa: U100
         raise NotImplementedError
 
     def get_auth_check_code(self):
+        """Callback to retrieve authentication check code (if account supports 2FA). Default
+        behavior is to raise exception, redefine in a subclass
+
+        Returns:
+            The authentication check code can be obtained in the sent SMS, using Google
+            Authenticator (or another authenticator), or it can be one of ten backup codes
+        """
         raise NotImplementedError
 
     def auth_check_is_needed(self, auth_session, validation_page):
@@ -258,7 +269,7 @@ class UserAPI(API):
         auth_session.post(auth_check_action, {'code': self.get_auth_check_code()})
         return True
 
-    def phone_number_is_needed(self, auth_session, login_response):
+    def phone_number_is_needed(self, auth_session, login_response):  # noqa: U100
         raise NotImplementedError
 
     def get_auth_params(self):
@@ -270,9 +281,6 @@ class UserAPI(API):
         }
 
     def authorize(self, auth_session):
-        """
-        OAuth2
-        """
         # Ask access
         ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
         url_queries = self._get_url_queries(ask_access_response.url)
@@ -290,10 +298,6 @@ class UserAPI(API):
         return url_queries.get('access_token')
 
     def on_api_error_15(self, request):
-        """
-        15. Access denied
-            - due to scope
-        """
         logger.error('Authorization failed. Access token will be dropped')
 
         del request.method_params['access_token']
@@ -353,10 +357,12 @@ class InteractiveMixin:
     """
 
     def __setattr__(self, name, value):
-        if name in dir(self.__class__) and not value:
+        attrs = dir(self.__class__)
+
+        if name in attrs and not value:
             return
 
-        elif name in filter(property, dir(self.__class__)):
+        elif name in filter(lambda x: isinstance(getattr(self.__class__, x), property), attrs):
             object.__setattr__(self, '_cached_' + name, value)
 
         else:

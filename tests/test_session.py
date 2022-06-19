@@ -40,7 +40,10 @@ def test_user_api_durov(user_api):
     assert users[0]['last_name'] == 'Durov'
 
 
-def test_user_api_invalid_credentials():
+def test_user_api_auth_errors():
+    with pytest.raises(VkAuthError, match=r'client_id is incorrect'):
+        UserAPI('foo', 'bar', None)
+
     with pytest.raises(VkAuthError, match=r'Login error \(e.g. incorrect password\)'):
         UserAPI('foo', 'bar')
 
@@ -74,6 +77,11 @@ def test_interactive_mixin_mixed(monkeypatch, access_token, v, lang):
     monkeypatch.setattr('sys.stdin', StringIO(access_token))
 
     api = InteractiveAPI(v=v, lang=lang)
+
+    users = api.users.get(user_ids=1)
+    assert users[0]['last_name'] == 'Durov'
+
+    api = InteractiveAPI(access_token, v=v, lang=lang)
 
     users = api.users.get(user_ids=1)
     assert users[0]['last_name'] == 'Durov'

@@ -30,6 +30,7 @@ vk.UserAPI
 ----------
 
 .. autoclass:: vk.session.UserAPI
+    :members:
 
 
 vk.CommunityAPI
