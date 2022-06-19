@@ -252,6 +252,7 @@ class UserAPI(API):
         raise VkAuthError('Login error (e.g. incorrect password)')
 
     def auth_captcha_is_needed(self, auth_session, login_response):  # noqa: U100
+        print(login_response.url, login_response.text)
         raise NotImplementedError
 
     def get_auth_check_code(self):
