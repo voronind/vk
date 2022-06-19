@@ -172,7 +172,6 @@ class UserAPI(API):
             >>> print(api.users.get(user_ids=1))
             [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
     """
-    LOGIN_URL = 'https://m.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
     def __init__(self, user_login=None, user_password=None, app_id=None, scope='offline', **kwargs):
@@ -184,12 +183,18 @@ class UserAPI(API):
         super().__init__(self.get_access_token(), **kwargs)
 
     @staticmethod
-    def get_form_action(response):
+    def _get_form_action(response):
         form_action = findall(r'<form(?= ).* action="(.+)"', response.text)
         if form_action:
             return form_action[0]
-        else:
-            raise VkAuthError('No form on page {}'.format(response.url))
+        raise VkAuthError(f'No form on page {response.url}')
+
+    @staticmethod
+    def _get_input_value(response, name):
+        input_value = findall(rf'<input.* type="hidden".* name="{name}".* value="(.+)"', response.text)
+        if input_value:
+            return input_value[0]
+        raise VkAuthError(f'No input with name `{name}` on page {response.url}')
 
     def get_response_url_queries(self, response):
         if not response.ok:
@@ -203,29 +208,38 @@ class UserAPI(API):
     @staticmethod
     def get_url_queries(url):
         parsed_url = urllib.parse.urlparse(url)
-        url_queries = urllib.parse.parse_qsl(parsed_url.fragment)
         # We lose repeating keys values
-        return dict(url_queries)
+        url_queries = {
+            **dict(urllib.parse.parse_qsl(parsed_url.fragment)),
+            **dict(urllib.parse.parse_qsl(parsed_url.query))
+        }
+
+        return url_queries
 
     def get_access_token(self):
         auth_session = requests.Session()
+        auth_session.headers['Origin'] = 'https://oauth.vk.com'
 
         if self.login(auth_session):
             return self.authorize(auth_session)
 
-    def get_login_form_data(self):
+    def get_login_form_data(self, response):
         return {
+            '_origin': self._get_input_value(response, '_origin'),
+            'ip_h': self._get_input_value(response, 'ip_h'),
+            'lg_domain_h': self._get_input_value(response, 'lg_domain_h'),
+            'to': self._get_input_value(response, 'to'),
             'email': self.user_login,
             'pass': self.user_password,
         }
 
     def login(self, auth_session):
         # Get login page
-        login_page_response = auth_session.get(self.LOGIN_URL)
-        # Get login form action. It must contains ip_h and lg_h values
-        login_action = self.get_form_action(login_page_response)
+        login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
+        # Get login form action
+        login_action = self._get_form_action(login_page_response)
         # Login using user credentials
-        login_response = auth_session.post(login_action, self.get_login_form_data())
+        login_response = auth_session.post(login_action, self.get_login_form_data(login_page_response))
 
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
             return True
@@ -257,17 +271,20 @@ class UserAPI(API):
         """
         # Ask access
         ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
-        url_queries = self.get_response_url_queries(ask_access_response)
 
-        if 'access_token' not in url_queries:
-            # Grant access
-            grant_access_action = self.get_form_action(ask_access_response)
-            grant_access_response = auth_session.post(grant_access_action)
-            url_queries = self.get_response_url_queries(grant_access_response)
+        # Grant access
+        grant_access_action = self._get_form_action(ask_access_response)
+        grant_access_response = auth_session.post(grant_access_action)
+
+        url_queries = self.get_response_url_queries(grant_access_response)
+        url_queries = self.get_url_queries(urllib.parse.unquote(url_queries['authorize_url']))
 
         return self.process_auth_url_queries(url_queries)
 
     def process_auth_url_queries(self, url_queries):
+        # redirect_url = self._get_location_href(response, 'grant_access')
+        # url_queries = self.get_url_queries(redirect_url)
+
         self.expires_in = url_queries.get('expires_in')
         self.user_id = url_queries.get('user_id')
         return url_queries.get('access_token')
