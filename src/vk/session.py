@@ -175,7 +175,7 @@ class UserAPI(API):
     LOGIN_URL = 'https://oauth.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login=None, user_password=None, app_id=None, scope='offline', **kwargs):
+    def __init__(self, user_login=None, user_password=None, app_id=2274003, scope='offline', **kwargs):
         self.user_login = user_login
         self.user_password = user_password
         self.app_id = app_id
@@ -271,12 +271,14 @@ class UserAPI(API):
         """
         # Ask access
         ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
+        url_queries = self._get_url_queries(ask_access_response.url)
 
-        # Grant access
-        grant_access_action = self._get_form_action(ask_access_response)
-        grant_access_response = auth_session.post(grant_access_action)
+        if 'authorize_url' not in url_queries:
+            # Grant access
+            grant_access_action = self._get_form_action(ask_access_response)
+            grant_access_response = auth_session.post(grant_access_action)
+            url_queries = self._get_url_queries(grant_access_response.url)
 
-        url_queries = self._get_url_queries(grant_access_response.url)
         url_queries = self._get_url_queries(urllib.parse.unquote(url_queries['authorize_url']))
 
         self.expires_in = url_queries.get('expires_in')

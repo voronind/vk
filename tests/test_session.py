@@ -41,7 +41,7 @@ def test_user_api_durov(user_api):
 
 
 def test_user_api_invalid_credentials():
-    with pytest.raises(VkAuthError, match=r'username_or_password_is_incorrect'):
+    with pytest.raises(VkAuthError, match=r'Login error \(e.g. incorrect password\)'):
         UserAPI('foo', 'bar')
 
 
