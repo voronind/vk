@@ -215,7 +215,9 @@ class UserAPI(API):
     def _oauth_is_request_success(response):
         if not response.ok:
             if response.status_code == 401:
-                raise VkAuthError(response.json()['error_description'])
+                description = response.json()['error_description']
+                logger.error('OAuth authorization failed: %s', description)
+                raise VkAuthError(description)
             response.raise_for_status()
 
     def get_access_token(self):
@@ -236,6 +238,7 @@ class UserAPI(API):
 
     def login(self, auth_session, login_response=None):
         if not login_response:
+            logger.debug('Start of the login process')
             # Get login page
             login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
             # Check if params for OAuth is enough
@@ -246,19 +249,24 @@ class UserAPI(API):
             login_response = auth_session.post(login_action, self.get_login_form_data(login_page_response))
 
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
+            logger.debug('Successfully logged in')
             return True
 
         url_queries = self._get_url_queries(login_response.url)
 
         if 'sid' in url_queries:
+            logger.debug('Auth captcha is needed')
             return self.auth_captcha_is_needed(auth_session, login_response)
 
         if url_queries.get('act') == 'authcheck':
+            logger.debug('Auth check code is needed')
             return self.auth_check_is_needed(auth_session, login_response)
 
         if 'security_check' in url_queries:
+            logger.debug('Phone number is needed')
             return self.phone_number_is_needed(auth_session, login_response)
 
+        logger.error('Unknown login error. Last URL: %s.', login_response.url)
         raise VkAuthError('Login error (e.g. incorrect password)')
 
     def auth_captcha_is_needed(self, auth_session, response):
@@ -323,12 +331,14 @@ class UserAPI(API):
         }
 
     def authorize(self, auth_session):
+        logger.debug('Start of the OAuth authorization process')
         # Ask access
         ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
         self._oauth_is_request_success(ask_access_response)
         url_queries = self._get_url_queries(ask_access_response.url)
 
         if 'authorize_url' not in url_queries:
+            logger.debug('Grant access to app')
             # Grant access
             grant_access_action = self._get_form_action(ask_access_response)
             grant_access_response = auth_session.post(grant_access_action)
@@ -338,7 +348,13 @@ class UserAPI(API):
 
         self.expires_in = url_queries.get('expires_in')
         self.user_id = url_queries.get('user_id')
-        return url_queries.get('access_token')
+
+        if 'access_token' in url_queries:
+            logger.debug('Successfully authorized')
+            return url_queries['access_token']
+
+        logger.error('Unknown OAuth authorization error. URL queries = %s.', url_queries)
+        raise VkAuthError('OAuth authorization failed')
 
 
 class CommunityAPI(UserAPI):
