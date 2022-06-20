@@ -7,7 +7,7 @@ from re import findall
 import requests
 
 from .api import APINamespace
-from .exceptions import VkAPIError, VkAuthError
+from .exceptions import ErrorCodes, VkAPIError, VkAuthError
 from .utils import stringify
 
 logger = logging.getLogger(__name__)
@@ -220,23 +220,24 @@ class UserAPI(API):
             'pass': self.user_password,
         }
 
-    def login(self, auth_session):
-        # Get login page
-        login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
+    def login(self, auth_session, login_response=None):
+        if not login_response:
+            # Get login page
+            login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
 
-        # Check if params for OAuth is enough
-        if not login_page_response.ok:
-            if login_page_response.status_code == 401:
-                raise VkAuthError(login_page_response.json()['error_description'])
-            login_page_response.raise_for_status()
+            # Check if params for OAuth is enough
+            if not login_page_response.ok:
+                if login_page_response.status_code == 401:
+                    raise VkAuthError(login_page_response.json()['error_description'])
+                login_page_response.raise_for_status()
 
-        # Get login form action
-        login_action = self._get_form_action(login_page_response)
-        # Login using user credentials
-        login_response = auth_session.post(login_action, self.get_login_form_data(login_page_response))
+            # Get login form action
+            login_action = self._get_form_action(login_page_response)
+            # Login using user credentials
+            login_response = auth_session.post(login_action, self.get_login_form_data(login_page_response))
 
-        if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
-            return True
+            if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
+                return True
 
         url_queries = self._get_url_queries(login_response.url)
 
@@ -251,9 +252,38 @@ class UserAPI(API):
 
         raise VkAuthError('Login error (e.g. incorrect password)')
 
-    def auth_captcha_is_needed(self, auth_session, login_response):  # noqa: U100
-        print(login_response.url, login_response.text)
-        raise NotImplementedError
+    def auth_captcha_is_needed(self, auth_session, response):  # noqa: U100
+        # Get login form action
+        login_action = self._get_form_action(response)
+
+        # Get captcha data (img and sid)
+        captcha_img = findall(r'<img.* id="captcha".* src="([^\"]+)"', response.text)
+        if captcha_img:
+            captcha_img = captcha_img[0]
+        else:
+            raise VkAuthError(f'No captcha on page {response.url}')
+
+        captcha_sid = self._get_input_value(response, 'captcha_sid')
+
+        # Create a bogus error
+        error_data = {
+            'error_code': ErrorCodes.CAPTCHA_NEEDED,
+            'error_msg': 'Captcha error occured during authorization',
+            'captcha_sid': captcha_sid,
+            'captcha_img': captcha_img
+        }
+        error = VkAPIError(error_data)
+
+        # Login again using user credentials and solved captcha
+        login_form_data = {
+            **self.get_login_form_data(response),
+            'captcha_sid': captcha_sid,
+            'captcha_key': self.get_captcha_key(error)
+        }
+        login_response = auth_session.post(login_action, login_form_data)
+
+        # Re-login with solved captcha
+        return self.login(auth_session, login_response)
 
     def get_auth_check_code(self):
         """Callback to retrieve authentication check code (if account supports 2FA). Default
@@ -265,12 +295,12 @@ class UserAPI(API):
         """
         raise NotImplementedError
 
-    def auth_check_is_needed(self, auth_session, validation_page):
-        auth_check_action = self.LOGIN_URL + self._get_form_action(validation_page)
+    def auth_check_is_needed(self, auth_session, response):
+        auth_check_action = self.LOGIN_URL + self._get_form_action(response)
         auth_session.post(auth_check_action, {'code': self.get_auth_check_code()})
         return True
 
-    def phone_number_is_needed(self, auth_session, login_response):  # noqa: U100
+    def phone_number_is_needed(self, auth_session, response):  # noqa: U100
         raise NotImplementedError
 
     def get_auth_params(self):
