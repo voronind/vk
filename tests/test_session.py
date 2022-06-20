@@ -64,8 +64,11 @@ def test_interactive_mixin(monkeypatch):
     monkeypatch.setattr('sys.stdin', StringIO('test_access_token'))
     assert mixin.access_token == 'test_access_token'
 
+    class Error:
+        captcha_img = 'http://example.com'
+
     monkeypatch.setattr('sys.stdin', StringIO('SuperCaptcha'))
-    assert mixin.get_captcha_key('http://example.com') == 'SuperCaptcha'
+    assert mixin.get_captcha_key(Error()) == 'SuperCaptcha'
 
     monkeypatch.setattr('sys.stdin', StringIO('123789456'))
     assert mixin.get_auth_check_code() == '123789456'

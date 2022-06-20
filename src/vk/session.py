@@ -124,10 +124,17 @@ class API(APIBase):
         super().__init__(**kwargs)
         self.access_token = access_token
 
-    def get_captcha_key(self, request):
-        """Default behavior on CAPTCHA is to raise exception, redefine in a subclass
+    def get_captcha_key(self, api_error):
+        """Callback to retrieve CAPTCHA key. Default behavior is to raise exception,
+        redefine in a subclass
+
+        Args:
+            api_error (vk.exceptions.VkAPIError): Captcha error that occurred
+
+        Returns:
+            Captcha solution (a short string consisting of lowercase letters and numbers)
         """
-        raise request.api_error
+        raise api_error
 
     def on_api_error_14(self, request):
         """Captcha error handler. Retrieves captcha via :meth:`API.get_captcha_key` and
@@ -150,7 +157,7 @@ class UserAPI(API):
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
         user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
-        app_id (Optional[int]): ID of the application to authorize with, defaults to
+        client_id (Optional[int]): ID of the application to authorize with, defaults to
             "Kate Moblie" app ID
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
@@ -176,10 +183,10 @@ class UserAPI(API):
     LOGIN_URL = 'https://oauth.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login=None, user_password=None, app_id=2685278, scope='offline', **kwargs):
+    def __init__(self, user_login=None, user_password=None, client_id=2685278, scope='offline', **kwargs):
         self.user_login = user_login
         self.user_password = user_password
-        self.app_id = app_id
+        self.client_id = client_id
         self.scope = scope
 
         super().__init__(self.get_access_token(), **kwargs)
@@ -252,7 +259,7 @@ class UserAPI(API):
 
         raise VkAuthError('Login error (e.g. incorrect password)')
 
-    def auth_captcha_is_needed(self, auth_session, response):  # noqa: U100
+    def auth_captcha_is_needed(self, auth_session, response):
         # Get login form action
         login_action = self._get_form_action(response)
 
@@ -305,7 +312,7 @@ class UserAPI(API):
 
     def get_auth_params(self):
         return {
-            'client_id': self.app_id,
+            'client_id': self.client_id,
             'scope': self.scope,
             'display': 'mobile',
             'response_type': 'token',
@@ -327,14 +334,6 @@ class UserAPI(API):
         self.expires_in = url_queries.get('expires_in')
         self.user_id = url_queries.get('user_id')
         return url_queries.get('access_token')
-
-    def on_api_error_15(self, request):
-        logger.error('Authorization failed. Access token will be dropped')
-
-        del request.method_params['access_token']
-        self.access_token = self.get_access_token()
-
-        return self.send(request)
 
 
 class CommunityAPI(UserAPI):
@@ -393,11 +392,10 @@ class InteractiveMixin:
         if name in attrs and not value:
             return
 
-        elif name in filter(lambda x: isinstance(getattr(self.__class__, x), property), attrs):
-            object.__setattr__(self, '_cached_' + name, value)
+        if name in filter(lambda x: isinstance(getattr(self.__class__, x), property), attrs):
+            return object.__setattr__(self, '_cached_' + name, value)
 
-        else:
-            object.__setattr__(self, name, value)
+        return object.__setattr__(self, name, value)
 
     @property
     def user_login(self):
@@ -417,11 +415,11 @@ class InteractiveMixin:
             self._cached_access_token = input('VK API access token: ')
         return self._cached_access_token
 
-    def get_captcha_key(self, captcha_image_url):
+    def get_captcha_key(self, api_error):
         """
         Read CAPTCHA key from shell
         """
-        print('Open CAPTCHA image url: ', captcha_image_url)
+        print('Open CAPTCHA image url: ', api_error.captcha_img)
         return input('Enter CAPTCHA key: ')
 
     def get_auth_check_code(self):
