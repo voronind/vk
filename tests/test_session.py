@@ -4,7 +4,7 @@ from os import getenv, urandom
 
 import pytest
 
-from vk import API, UserAPI
+from vk import API, UserAPI, CommunityAPI
 from vk.exceptions import VkAuthError
 from vk.session import InteractiveMixin
 
@@ -18,6 +18,14 @@ def api(access_token, v, lang):
 def user_api(user_login, user_password, v, lang):
     if not getenv('CI_RUN'):
         return UserAPI(user_login, user_password, v=v, lang=lang)
+
+    pytest.skip('CI run')
+
+
+@pytest.fixture
+def community_api(user_login, user_password, group_ids, v, lang):
+    if not getenv('CI_RUN'):
+        return CommunityAPI(user_login, user_password, gruop_ids=group_ids, v=v, lang=lang)
 
     pytest.skip('CI run')
 
@@ -50,6 +58,11 @@ def test_user_api_auth_errors():
 
     with pytest.raises(VkAuthError, match=r'Login error \(e.g. incorrect password\)'):
         UserAPI(urandom(4).hex(), urandom(4).hex())
+
+
+def test_community_api_durov(community_api, group_ids):
+    users = community_api.users.get(user_ids=1, group_id=group_ids.split(',')[0])
+    assert users[0]['last_name'] == 'Durov'
 
 
 def test_interactive_mixin(monkeypatch):
