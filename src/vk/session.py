@@ -7,7 +7,7 @@ from re import findall
 import requests
 
 from .api import APINamespace
-from .exceptions import VkAPIError, VkAuthError
+from .exceptions import ErrorCodes, VkAPIError, VkAuthError
 from .utils import stringify
 
 logger = logging.getLogger(__name__)
@@ -124,10 +124,17 @@ class API(APIBase):
         super().__init__(**kwargs)
         self.access_token = access_token
 
-    def get_captcha_key(self, request):
-        """Default behavior on CAPTCHA is to raise exception. Redefine in a subclass
+    def get_captcha_key(self, api_error):
+        """Callback to retrieve CAPTCHA key. Default behavior is to raise exception,
+        redefine in a subclass
+
+        Args:
+            api_error (vk.exceptions.VkAPIError): Captcha error that occurred
+
+        Returns:
+            Captcha solution (a short string consisting of lowercase letters and numbers)
         """
-        raise request.api_error
+        raise api_error
 
     def on_api_error_14(self, request):
         """Captcha error handler. Retrieves captcha via :meth:`API.get_captcha_key` and
@@ -144,12 +151,14 @@ class API(APIBase):
 
 class UserAPI(API):
     """Subclass of :class:`vk.session.API`. It differs only in that it can get access token
-    using app id and user credentials (Implicit flow authorization).
+    using user credentials (`Implicit flow authorization
+    <https://dev.vk.com/api/access-token/implicit-flow-user>`__).
 
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
         user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
-        app_id (Optional[int]): App ID
+        client_id (Optional[int]): ID of the application to authorize with, defaults to
+            "VK Admin" app ID
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
             documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
@@ -165,124 +174,187 @@ class UserAPI(API):
             >>> api = vk.UserAPI(
             ...     user_login='...',
             ...     user_password='...',
-            ...     app_id=123456,
             ...     scope='offline,wall',
             ...     v='5.131'
             ... )
             >>> print(api.users.get(user_ids=1))
             [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
     """
-    LOGIN_URL = 'https://m.vk.com'
+    LOGIN_URL = 'https://oauth.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login=None, user_password=None, app_id=None, scope='offline', **kwargs):
+    def __init__(self, user_login=None, user_password=None, client_id=6121396, scope='offline', **kwargs):
         self.user_login = user_login
         self.user_password = user_password
-        self.app_id = app_id
+        self.client_id = client_id
         self.scope = scope
 
         super().__init__(self.get_access_token(), **kwargs)
 
     @staticmethod
-    def get_form_action(response):
+    def _get_form_action(response):
         form_action = findall(r'<form(?= ).* action="(.+)"', response.text)
         if form_action:
             return form_action[0]
-        else:
-            raise VkAuthError('No form on page {}'.format(response.url))
-
-    def get_response_url_queries(self, response):
-        if not response.ok:
-            if response.status_code == 401:
-                raise VkAuthError(response.json()['error_description'])
-            else:
-                response.raise_for_status()
-
-        return self.get_url_queries(response.url)
+        raise VkAuthError(f'No form on page {response.url}')
 
     @staticmethod
-    def get_url_queries(url):
+    def _get_input_value(response, name):
+        input_value = findall(rf'<input.* type="hidden".* name="{name}".* value="(.+)"', response.text)
+        if input_value:
+            return input_value[0]
+        raise VkAuthError(f'No input with name `{name}` on page {response.url}')
+
+    @staticmethod
+    def _get_url_queries(url):
         parsed_url = urllib.parse.urlparse(url)
-        url_queries = urllib.parse.parse_qsl(parsed_url.fragment)
         # We lose repeating keys values
-        return dict(url_queries)
+        return dict(urllib.parse.parse_qsl(parsed_url.fragment or parsed_url.query))
+
+    @staticmethod
+    def _oauth_is_request_success(response):
+        if not response.ok:
+            if response.status_code == 401:
+                description = response.json()['error_description']
+                logger.error('OAuth authorization failed: %s', description)
+                raise VkAuthError(description)
+            response.raise_for_status()
 
     def get_access_token(self):
         auth_session = requests.Session()
+        auth_session.headers['Origin'] = 'https://oauth.vk.com'
 
         if self.login(auth_session):
             return self.authorize(auth_session)
 
-    def get_login_form_data(self):
+    def get_login_form_data(self, response):
         return {
+            'ip_h': self._get_input_value(response, 'ip_h'),
+            'lg_domain_h': self._get_input_value(response, 'lg_domain_h'),
+            'to': self._get_input_value(response, 'to'),
             'email': self.user_login,
             'pass': self.user_password,
         }
 
-    def login(self, auth_session):
-        # Get login page
-        login_page_response = auth_session.get(self.LOGIN_URL)
-        # Get login form action. It must contains ip_h and lg_h values
-        login_action = self.get_form_action(login_page_response)
-        # Login using user credentials
-        login_response = auth_session.post(login_action, self.get_login_form_data())
+    def login(self, auth_session, login_response=None):
+        if not login_response:
+            logger.debug('Start of the login process')
+            # Get login page
+            login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
+            # Check if params for OAuth is enough
+            self._oauth_is_request_success(login_page_response)
+            # Get login form action
+            login_action = self._get_form_action(login_page_response)
+            # Login using user credentials
+            login_response = auth_session.post(login_action, self.get_login_form_data(login_page_response))
 
         if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
+            logger.debug('Successfully logged in')
             return True
 
-        url_queries = self.get_url_queries(login_response.url)
+        url_queries = self._get_url_queries(login_response.url)
+
         if 'sid' in url_queries:
-            self.auth_captcha_is_needed(login_response)
+            logger.debug('Auth captcha is needed')
+            return self.auth_captcha_is_needed(auth_session, login_response)
 
-        elif url_queries.get('act') == 'authcheck':
-            self.auth_check_is_needed(login_response.text)
+        if url_queries.get('act') == 'authcheck':
+            logger.debug('Auth check code is needed')
+            return self.auth_check_is_needed(auth_session, login_response)
 
-        elif 'security_check' in url_queries:
-            self.phone_number_is_needed(login_response.text)
+        if 'security_check' in url_queries:
+            logger.debug('Phone number is needed')
+            return self.phone_number_is_needed(auth_session, login_response)
 
+        logger.error('Unknown login error. Last URL: %s.', login_response.url)
+        raise VkAuthError('Login error (e.g. incorrect password)')
+
+    def auth_captcha_is_needed(self, auth_session, response):
+        # Get login form action
+        login_action = self._get_form_action(response)
+
+        # Get captcha data (img and sid)
+        captcha_img = findall(r'<img.* id="captcha".* src="([^\"]+)"', response.text)
+        if captcha_img:
+            captcha_img = captcha_img[0]
         else:
-            raise VkAuthError('Login error (e.g. incorrect password)')
+            raise VkAuthError(f'No captcha on page {response.url}')
+
+        captcha_sid = self._get_input_value(response, 'captcha_sid')
+
+        # Create a bogus error
+        error_data = {
+            'error_code': ErrorCodes.CAPTCHA_NEEDED,
+            'error_msg': 'Captcha error occured during authorization',
+            'captcha_sid': captcha_sid,
+            'captcha_img': captcha_img
+        }
+        error = VkAPIError(error_data)
+
+        # Login again using user credentials and solved captcha
+        login_form_data = {
+            **self.get_login_form_data(response),
+            'captcha_sid': captcha_sid,
+            'captcha_key': self.get_captcha_key(error)
+        }
+        login_response = auth_session.post(login_action, login_form_data)
+
+        # Re-login with solved captcha
+        return self.login(auth_session, login_response)
+
+    def get_auth_check_code(self):
+        """Callback to retrieve authentication check code (if account supports 2FA). Default
+        behavior is to raise exception, redefine in a subclass
+
+        Returns:
+            The authentication check code can be obtained in the sent SMS, using Google
+            Authenticator (or another authenticator), or it can be one of ten backup codes
+        """
+        raise NotImplementedError
+
+    def auth_check_is_needed(self, auth_session, response):
+        auth_check_action = self.LOGIN_URL + self._get_form_action(response)
+        login_response = auth_session.post(auth_check_action, {'code': self.get_auth_check_code()})
+
+        # Re-login with auth check code
+        return self.login(auth_session, login_response)
+
+    def phone_number_is_needed(self, auth_session, response):  # noqa: U100
+        raise NotImplementedError
 
     def get_auth_params(self):
         return {
-            'client_id': self.app_id,
+            'client_id': self.client_id,
             'scope': self.scope,
             'display': 'mobile',
             'response_type': 'token',
         }
 
     def authorize(self, auth_session):
-        """
-        OAuth2
-        """
+        logger.debug('Start of the OAuth authorization process')
         # Ask access
         ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
-        url_queries = self.get_response_url_queries(ask_access_response)
+        self._oauth_is_request_success(ask_access_response)
+        url_queries = self._get_url_queries(ask_access_response.url)
 
-        if 'access_token' not in url_queries:
+        if 'authorize_url' not in url_queries:
+            logger.debug('Grant access to app')
             # Grant access
-            grant_access_action = self.get_form_action(ask_access_response)
+            grant_access_action = self._get_form_action(ask_access_response)
             grant_access_response = auth_session.post(grant_access_action)
-            url_queries = self.get_response_url_queries(grant_access_response)
+            url_queries = self._get_url_queries(grant_access_response.url)
 
-        return self.process_auth_url_queries(url_queries)
+        url_queries = self._get_url_queries(urllib.parse.unquote(url_queries['authorize_url']))
 
-    def process_auth_url_queries(self, url_queries):
         self.expires_in = url_queries.get('expires_in')
         self.user_id = url_queries.get('user_id')
-        return url_queries.get('access_token')
 
-    def on_api_error_15(self, request):
-        """
-        15. Access denied
-            - due to scope
-        """
-        logger.error('Authorization failed. Access token will be dropped')
+        if 'access_token' in url_queries:
+            logger.debug('Successfully authorized')
+            return url_queries['access_token']
 
-        del request.method_params['access_token']
-        self.access_token = self.get_access_token()
-
-        return self.send(request)
+        logger.error('Unknown OAuth authorization error. URL queries = %s.', url_queries)
+        raise VkAuthError('OAuth authorization failed')
 
 
 class CommunityAPI(UserAPI):
@@ -336,10 +408,15 @@ class InteractiveMixin:
     """
 
     def __setattr__(self, name, value):
-        if name in dir(self.__class__) and not value:
+        attrs = dir(self.__class__)
+
+        if name in attrs and not value:
             return
 
-        object.__setattr__(self, name, value)
+        if name in filter(lambda x: isinstance(getattr(self.__class__, x), property), attrs):
+            return object.__setattr__(self, '_cached_' + name, value)
+
+        return object.__setattr__(self, name, value)
 
     @property
     def user_login(self):
@@ -359,11 +436,11 @@ class InteractiveMixin:
             self._cached_access_token = input('VK API access token: ')
         return self._cached_access_token
 
-    def get_captcha_key(self, captcha_image_url):
+    def get_captcha_key(self, api_error):
         """
         Read CAPTCHA key from shell
         """
-        print('Open CAPTCHA image url: ', captcha_image_url)
+        print('Open CAPTCHA image url: ', api_error.captcha_img)
         return input('Enter CAPTCHA key: ')
 
     def get_auth_check_code(self):
