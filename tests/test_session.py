@@ -1,6 +1,6 @@
 import logging
 from io import StringIO
-from os import urandom
+from os import getenv, urandom
 
 import pytest
 
@@ -16,7 +16,10 @@ def api(access_token, v, lang):
 
 @pytest.fixture
 def user_api(user_login, user_password, v, lang):
-    return UserAPI(user_login, user_password, v=v, lang=lang)
+    if not getenv('CI_RUN'):
+        return UserAPI(user_login, user_password, v=v, lang=lang)
+
+    pytest.skip('CI run')
 
 
 def test_api_durov(api):
