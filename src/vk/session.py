@@ -211,6 +211,13 @@ class UserAPI(API):
         # We lose repeating keys values
         return dict(urllib.parse.parse_qsl(parsed_url.fragment or parsed_url.query))
 
+    @staticmethod
+    def oauth_is_request_success(response):
+        if not response.ok:
+            if response.status_code == 401:
+                raise VkAuthError(response.json()['error_description'])
+            response.raise_for_status()
+
     def get_access_token(self):
         auth_session = requests.Session()
         auth_session.headers['Origin'] = 'https://oauth.vk.com'
@@ -233,10 +240,7 @@ class UserAPI(API):
             login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
 
             # Check if params for OAuth is enough
-            if not login_page_response.ok:
-                if login_page_response.status_code == 401:
-                    raise VkAuthError(login_page_response.json()['error_description'])
-                login_page_response.raise_for_status()
+            self.oauth_is_request_success(login_page_response)
 
             # Get login form action
             login_action = self._get_form_action(login_page_response)
@@ -321,6 +325,7 @@ class UserAPI(API):
     def authorize(self, auth_session):
         # Ask access
         ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
+        self.oauth_is_request_success(ask_access_response)
         url_queries = self._get_url_queries(ask_access_response.url)
 
         if 'authorize_url' not in url_queries:
