@@ -212,7 +212,7 @@ class UserAPI(API):
         return dict(urllib.parse.parse_qsl(parsed_url.fragment or parsed_url.query))
 
     @staticmethod
-    def oauth_is_request_success(response):
+    def _oauth_is_request_success(response):
         if not response.ok:
             if response.status_code == 401:
                 raise VkAuthError(response.json()['error_description'])
@@ -238,17 +238,15 @@ class UserAPI(API):
         if not login_response:
             # Get login page
             login_page_response = auth_session.get(self.AUTHORIZE_URL, params=self.get_auth_params())
-
             # Check if params for OAuth is enough
-            self.oauth_is_request_success(login_page_response)
-
+            self._oauth_is_request_success(login_page_response)
             # Get login form action
             login_action = self._get_form_action(login_page_response)
             # Login using user credentials
             login_response = auth_session.post(login_action, self.get_login_form_data(login_page_response))
 
-            if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
-                return True
+        if 'remixsid' in auth_session.cookies or 'remixsid6' in auth_session.cookies:
+            return True
 
         url_queries = self._get_url_queries(login_response.url)
 
@@ -308,8 +306,10 @@ class UserAPI(API):
 
     def auth_check_is_needed(self, auth_session, response):
         auth_check_action = self.LOGIN_URL + self._get_form_action(response)
-        auth_session.post(auth_check_action, {'code': self.get_auth_check_code()})
-        return True
+        login_response = auth_session.post(auth_check_action, {'code': self.get_auth_check_code()})
+
+        # Re-login with auth check code
+        return self.login(auth_session, login_response)
 
     def phone_number_is_needed(self, auth_session, response):  # noqa: U100
         raise NotImplementedError
@@ -325,7 +325,7 @@ class UserAPI(API):
     def authorize(self, auth_session):
         # Ask access
         ask_access_response = auth_session.post(self.AUTHORIZE_URL, self.get_auth_params())
-        self.oauth_is_request_success(ask_access_response)
+        self._oauth_is_request_success(ask_access_response)
         url_queries = self._get_url_queries(ask_access_response.url)
 
         if 'authorize_url' not in url_queries:
