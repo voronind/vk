@@ -158,7 +158,7 @@ class UserAPI(API):
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
         user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
         client_id (Optional[int]): ID of the application to authorize with, defaults to
-            "Kate Moblie" app ID
+            "VK Admin" app ID
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
             documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
@@ -183,7 +183,7 @@ class UserAPI(API):
     LOGIN_URL = 'https://oauth.vk.com'
     AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
 
-    def __init__(self, user_login=None, user_password=None, client_id=2685278, scope='offline', **kwargs):
+    def __init__(self, user_login=None, user_password=None, client_id=6121396, scope='offline', **kwargs):
         self.user_login = user_login
         self.user_password = user_password
         self.client_id = client_id
