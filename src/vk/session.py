@@ -349,12 +349,18 @@ class UserAPI(API):
         self.expires_in = url_queries.get('expires_in')
         self.user_id = url_queries.get('user_id')
 
-        if 'access_token' in url_queries:
-            logger.debug('Successfully authorized')
-            return url_queries['access_token']
+        for key in url_queries:
+            if key.startswith('access_token'):
+                logger.debug('Successfully authorized')
+                return self._process_auth_url_queries(url_queries)
 
         logger.error('Unknown OAuth authorization error. URL queries = %s.', url_queries)
         raise VkAuthError('OAuth authorization failed')
+
+    def _process_auth_url_queries(self, url_queries):
+        self.expires_in = url_queries.get('expires_in')
+        self.user_id = url_queries.get('user_id')
+        return url_queries['access_token']
 
 
 class CommunityAPI(UserAPI):
@@ -373,9 +379,7 @@ class CommunityAPI(UserAPI):
         auth_params['group_ids'] = stringify(self.group_ids)
         return auth_params
 
-    def process_auth_url_queries(self, url_queries):
-        super().process_auth_url_queries(url_queries)
-
+    def _process_auth_url_queries(self, url_queries):
         self.access_tokens = {}
         for key, value in url_queries.items():
             # access_token_GROUP-ID: ACCESS-TOKEN
