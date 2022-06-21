@@ -4,7 +4,7 @@ from os import getenv, urandom
 
 import pytest
 
-from vk import API, UserAPI, CommunityAPI
+from vk import API, CommunityAPI, UserAPI
 from vk.exceptions import VkAuthError
 from vk.session import InteractiveMixin
 

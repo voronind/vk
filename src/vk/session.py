@@ -406,7 +406,7 @@ class CommunityAPI(UserAPI):
         self,
         user_login=None,
         user_password=None,
-        group_ids=[],
+        group_ids=None,
         client_id=6121396,
         scope=None,
         **kwargs
