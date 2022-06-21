@@ -10,7 +10,8 @@ const_fixtures = {
 env_fixtures = (
     'VK_ACCESS_TOKEN',
     'VK_USER_LOGIN',
-    'VK_USER_PASSWORD'
+    'VK_USER_PASSWORD',
+    'VK_GROUP_IDS'
 )
 
 

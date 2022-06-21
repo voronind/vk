@@ -349,33 +349,81 @@ class UserAPI(API):
         self.expires_in = url_queries.get('expires_in')
         self.user_id = url_queries.get('user_id')
 
-        if 'access_token' in url_queries:
-            logger.debug('Successfully authorized')
-            return url_queries['access_token']
+        for key in url_queries:
+            if key.startswith('access_token'):
+                logger.debug('Successfully authorized')
+                return self._process_auth_url_queries(url_queries)
 
         logger.error('Unknown OAuth authorization error. URL queries = %s.', url_queries)
         raise VkAuthError('OAuth authorization failed')
 
+    def _process_auth_url_queries(self, url_queries):
+        self.expires_in = url_queries.get('expires_in')
+        self.user_id = url_queries.get('user_id')
+        return url_queries['access_token']
+
 
 class CommunityAPI(UserAPI):
-    """TODO"""
+    """Subclass of :class:`vk.session.UserAPI`. Can get community access token using user
+    credentials (`Implicit flow authorization for communities
+    <https://dev.vk.com/api/access-token/implicit-flow-community>`__). To select a community
+    on behalf of which to make request to the API method, you can pass the **group_id** param
+    (defaults to the first community from the passed list)
 
-    def __init__(self, *args, **kwargs):
-        self.group_ids = kwargs.pop('group_ids', None)
+    Args:
+        user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
+        user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
+        group_ids (List[int]): List of community IDs to be authorized
+        client_id (Optional[int]): ID of the application to authorize with, defaults to
+            "VK Admin" app ID
+        scope (Optional[Union[str, int]]): Access rights you need. Can be passed
+            comma-separated list of scopes, or bitmask sum all of them (see `official
+            documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
+            to ``None``. **Be careful**, only *manage*, *messages*, *photos*, *docs*,
+            *wall* and *stories* are available for communities
+        **kwargs (any): Additional parameters, which will be passed to each request.
+            The most useful is `v` - API version and `lang` - language of responses
+            (see :ref:`documentation <Making API request>`)
+
+    Example:
+        .. code-block:: python
+
+            >>> import vk
+            >>> api = vk.CommunityAPI(
+            ...     user_login='...',
+            ...     user_password='...',
+            ...     group_ids=[123456, 654321],
+            ...     scope='messages',
+            ...     v='5.131'
+            ... )
+            >>> print(api.users.get(user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+            >>> print(api.users.get(group_id=654321, user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+    """
+
+    def __init__(
+        self,
+        user_login=None,
+        user_password=None,
+        group_ids=None,
+        client_id=6121396,
+        scope=None,
+        **kwargs
+    ):
+        self.group_ids = group_ids
         self.default_group_id = None
 
         self.access_tokens = {}
 
-        super().__init__(*args, **kwargs)
+        super().__init__(user_login, user_password, client_id, scope, **kwargs)
 
     def get_auth_params(self):
         auth_params = super().get_auth_params()
         auth_params['group_ids'] = stringify(self.group_ids)
         return auth_params
 
-    def process_auth_url_queries(self, url_queries):
-        super().process_auth_url_queries(url_queries)
-
+    def _process_auth_url_queries(self, url_queries):
         self.access_tokens = {}
         for key, value in url_queries.items():
             # access_token_GROUP-ID: ACCESS-TOKEN

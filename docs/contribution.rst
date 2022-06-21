@@ -65,6 +65,9 @@ Since some test suites use real calls to the VK API, you should create the neces
       - Password from the VK account. For rare tests, you can use your account, otherwise we recommend to register a test one
       - \-
 
+    * - VK_GROUP_IDS
+      - IDs of communities in which you have admin rights
+      - Create *N* your communities, copy their IDs and pass it to env var as comma-separated list
 
 
 Logging
