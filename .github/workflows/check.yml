@@ -43,6 +43,7 @@ jobs:
           VK_ACCESS_TOKEN: ${{ secrets.VK_ACCESS_TOKEN }}
           VK_USER_LOGIN: ${{ secrets.VK_USER_LOGIN }}
           VK_USER_PASSWORD: ${{ secrets.VK_USER_PASSWORD }}
+          VK_GROUP_IDS: ${{ secrets.VK_GROUP_IDS }}
       - name: Upload coverage
         uses: codecov/codecov-action@v2
 
