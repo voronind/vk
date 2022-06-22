@@ -433,7 +433,6 @@ class DirectUserAPI(UserAPI):
         logger.debug('Start of the OAuth authorization process')
         auth_response = auth_session.post(self.AUTHORIZE_URL, self._get_auth_params())
         response_params = auth_response.json()
-        # print(response_params)
 
         if 'error' in response_params:
             if response_params['error'] == 'need_validation':
@@ -506,7 +505,6 @@ class DirectUserAPI(UserAPI):
                     **self._get_auth_params()
                 }
             ).json()
-            print('1', response_params)
 
         return response_params['access_token']
 
