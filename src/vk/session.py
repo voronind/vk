@@ -193,14 +193,14 @@ class UserAPI(API):
 
     @staticmethod
     def _get_form_action(response):
-        form_action = findall(r'<form(?= ).* action="(.+)"', response.text)
+        form_action = findall(r'<form[^>]* action="([^\"]+)"', response.text)
         if form_action:
             return form_action[0]
         raise VkAuthError(f'No form on page {response.url}')
 
     @staticmethod
     def _get_input_value(response, name):
-        input_value = findall(rf'<input.* type="hidden".* name="{name}".* value="(.+)"', response.text)
+        input_value = findall(rf'<input type="hidden" name="{name}" value="([^\"]+)"', response.text)
         if input_value:
             return input_value[0]
         raise VkAuthError(f'No input with name `{name}` on page {response.url}')
@@ -274,7 +274,7 @@ class UserAPI(API):
         login_action = self._get_form_action(response)
 
         # Get captcha data (img and sid)
-        captcha_img = findall(r'<img.* id="captcha".* src="([^\"]+)"', response.text)
+        captcha_img = findall(r'<img id="captcha" src="([^\"]+)"', response.text)
         if captcha_img:
             captcha_img = captcha_img[0]
         else:
@@ -359,6 +359,161 @@ class UserAPI(API):
 
     def _process_auth_url_queries(self, url_queries):
         self.expires_in = url_queries.get('expires_in')
+        self.user_id = url_queries.get('user_id')
+        return url_queries['access_token']
+
+
+class DirectUserAPI(UserAPI):
+    """Subclass of :class:`vk.session.UserAPI`. It differs only in that it can get access token
+    using user credentials (through `Direct authorization <https://dev.vk.com/api/direct-auth>`__).
+    See also:
+        `Necessary data <https://gist.github.com/YariKartoshe4ka/02a0f2f49efdac06c423eca5661cfc36>`__
+        (**client_id** and **client_secret**) from other official applications
+    Args:
+        user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
+        user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
+        client_id (Optional[int]): ID of the official application, defaults to *"VK for Android"* app ID
+        client_secret (Optional[str]): Client secret of the official application, defaults to client
+            secret of *"VK for Android"* app
+        scope (Optional[Union[str, int]]): Access rights you need. Can be passed
+            comma-separated list of scopes, or bitmask sum all of them (see `official
+            documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
+            to 'offline'
+        **kwargs (any): Additional parameters, which will be passed to each request.
+            The most useful is `v` - API version and `lang` - language of responses
+            (see :ref:`documentation <Making API request>`)
+
+    Example:
+        .. code-block:: python
+            >>> import vk
+            >>> api = vk.UserAPI(
+            ...     user_login='...',
+            ...     user_password='...',
+            ...     scope='offline,wall',
+            ...     v='5.131'
+            ... )
+            >>> print(api.users.get(user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+    """
+    LOGIN_URL = 'https://m.vk.com'
+    AUTHORIZE_URL = 'https://oauth.vk.com/token'
+
+    def __init__(
+        self,
+        user_login=None,
+        user_password=None,
+        client_id=2274003,
+        client_secret='hHbZxrka2uZ6jB1inYsH',
+        scope='offline',
+        **kwargs
+    ):
+        self.user_login = user_login
+        self.user_password = user_password
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.scope = scope
+
+        API.__init__(self, self.get_access_token(), **kwargs)
+
+    def login(self, auth_session):  # noqa: U100
+        return True
+
+    def _get_auth_params(self):
+        return {
+            'grant_type': 'password',
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'username': self.user_login,
+            'password': self.user_password,
+            'scope': self.scope,
+            '2fa_supported': 1
+        }
+
+    def authorize(self, auth_session):
+        logger.debug('Start of the OAuth authorization process')
+        auth_response = auth_session.post(self.AUTHORIZE_URL, self._get_auth_params())
+        response_params = auth_response.json()
+        # print(response_params)
+
+        if 'error' in response_params:
+            if response_params['error'] == 'need_validation':
+                return self.auth_check_is_needed(auth_session, response_params)
+
+            if response_params['error'] == 'need_captcha':
+                return self.auth_captcha_is_needed(auth_session, response_params)
+
+        self._oauth_is_request_success(auth_response)
+        return response_params['access_token']
+
+    def auth_check_is_needed(self, auth_session, response_params):
+        validation_page_response = auth_session.get(response_params['redirect_uri'])
+        url_queries = self._get_url_queries(validation_page_response.url)
+
+        # Resend auth check code until it's correct
+        while url_queries.get('act') == 'authcheck':
+            validation_action_url = self.LOGIN_URL + self._get_form_action(validation_page_response)
+
+            auth_check_code = self.get_auth_check_code()
+            validation_response = auth_session.post(validation_action_url, {'code': auth_check_code})
+            url_queries = self._get_url_queries(validation_response.url)
+
+            # CAPTCHA input required, resend until it's correct
+            while url_queries.get('act') == 'authcheck_code':
+                captcha_action_url = self.LOGIN_URL + self._get_form_action(validation_page_response)
+
+                # Get captcha data (img and sid)
+                captcha_img = findall(r'<img src="([^\"]+)" class="captcha_img"', validation_response.text)
+                if captcha_img:
+                    captcha_img = captcha_img[0]
+                else:
+                    raise VkAuthError(f'No captcha on page {validation_response.url}')
+
+                captcha_sid = self._get_input_value(validation_response, 'captcha_sid')
+
+                # Create a bogus error
+                error_data = {
+                    'error_code': ErrorCodes.CAPTCHA_NEEDED,
+                    'error_msg': 'Captcha error occured during authorization',
+                    'captcha_sid': captcha_sid,
+                    'captcha_img': captcha_img
+                }
+                error = VkAPIError(error_data)
+
+                captcha_check_response = auth_session.post(captcha_action_url, {
+                    'code': auth_check_code,
+                    'captcha_sid': captcha_sid,
+                    'captcha_key': self.get_captcha_key(error)
+                })
+                url_queries = self._get_url_queries(captcha_check_response.url)
+
+        return self._process_auth_url_queries(url_queries)
+
+    def auth_captcha_is_needed(self, auth_session, response_params):
+        while response_params.get('error') == 'need_captcha':
+            error_data = {
+                'error_code': ErrorCodes.CAPTCHA_NEEDED,
+                'error_msg': 'Captcha error occured during authorization',
+                'captcha_sid': response_params['captcha_sid'],
+                'captcha_img': response_params['captcha_img']
+            }
+            error = VkAPIError(error_data)
+
+            response_params = auth_session.post(
+                self.AUTHORIZE_URL,
+                params={
+                    'captcha_sid': error.captcha_sid,
+                    'captcha_img': self.get_captcha_key(error),
+                    **self._get_auth_params()
+                }
+            ).json()
+            print('1', response_params)
+
+        return response_params['access_token']
+
+    def _process_auth_url_queries(self, url_queries):
+        if 'fail' in url_queries:
+            raise VkAuthError('Unknown error')
+
         self.user_id = url_queries.get('user_id')
         return url_queries['access_token']
 
