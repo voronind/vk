@@ -33,6 +33,12 @@ vk.UserAPI
     :members:
 
 
+vk.DirectUserAPI
+----------------
+
+.. autoclass:: vk.session.DirectUserAPI
+
+
 vk.CommunityAPI
 ---------------
 

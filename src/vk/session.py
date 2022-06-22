@@ -154,6 +154,13 @@ class UserAPI(API):
     using user credentials (`Implicit flow authorization
     <https://dev.vk.com/api/access-token/implicit-flow-user>`__).
 
+    Warning:
+        This implementation uses the web version of VK to log in and receive cookies, and then
+        obtains an access token through Implicit flow authorization. In the future, VK may change
+        the approach to authorization (for example, replace it with `VK ID <https://id.vk.com>`__)
+        and maintaining operability will become quite a difficult task, and most likely it will
+        be **deprecated**. Use :class:`vk.session.DirectUserAPI` instead
+
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
         user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
@@ -364,11 +371,13 @@ class UserAPI(API):
 
 
 class DirectUserAPI(UserAPI):
-    """Subclass of :class:`vk.session.UserAPI`. It differs only in that it can get access token
-    using user credentials (through `Direct authorization <https://dev.vk.com/api/direct-auth>`__).
+    """Subclass of :class:`vk.session.UserAPI`. Can get access token using user
+    credentials (through `Direct authorization <https://dev.vk.com/api/direct-auth>`__).
+
     See also:
         `Necessary data <https://gist.github.com/YariKartoshe4ka/02a0f2f49efdac06c423eca5661cfc36>`__
         (**client_id** and **client_secret**) from other official applications
+
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
         user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
@@ -385,8 +394,9 @@ class DirectUserAPI(UserAPI):
 
     Example:
         .. code-block:: python
+
             >>> import vk
-            >>> api = vk.UserAPI(
+            >>> api = vk.DirectUserAPI(
             ...     user_login='...',
             ...     user_password='...',
             ...     scope='offline,wall',
@@ -522,6 +532,16 @@ class CommunityAPI(UserAPI):
     <https://dev.vk.com/api/access-token/implicit-flow-community>`__). To select a community
     on behalf of which to make request to the API method, you can pass the **group_id** param
     (defaults to the first community from the passed list)
+
+    Warning:
+        This implementation uses the web version of VK to log in and receive cookies, and then
+        obtains an access tokens through Implicit flow authorization for communities. In the
+        future, VK may change the approach to authorization (for example, replace it with `VK ID
+        <https://id.vk.com>`__) and maintaining operability will become quite a difficult task,
+        and most likely it will be **deprecated**.
+
+        You can create a group token on the management page: Community -> Management -> Working with
+        API -> Access Tokens -> Create a token (bonus - the token has no expiration date)
 
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
