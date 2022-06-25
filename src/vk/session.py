@@ -140,7 +140,7 @@ class API(APIBase):
         """Captcha error handler. Retrieves captcha via :meth:`API.get_captcha_key` and
         resends request
         """
-        request.method_params['captcha_key'] = self.get_captcha_key(request)
+        request.method_params['captcha_key'] = self.get_captcha_key(request.api_error)
         request.method_params['captcha_sid'] = request.api_error.captcha_sid
 
         return self.send(request)
