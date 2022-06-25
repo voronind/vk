@@ -273,7 +273,7 @@ class UserAPI(API):
             return self.auth_captcha_is_needed(auth_session, login_response)
 
         if url_queries.get('act') == 'authcheck':
-            logger.debug('Auth check code is needed')
+            logger.debug('Auth check is needed')
             return self.auth_check_is_needed(auth_session, login_response)
 
         if 'security_check' in url_queries:
@@ -462,6 +462,7 @@ class DirectUserAPI(UserAPI):
                 return self.auth_captcha_is_needed(auth_session, response_params)
 
         self._oauth_is_request_success(auth_response)
+        logger.debug('Successfully authorized')
         return response_params['access_token']
 
     def auth_check_is_needed(self, auth_session, response_params):
@@ -470,6 +471,8 @@ class DirectUserAPI(UserAPI):
 
         # Resend auth check code until it's correct
         while url_queries.get('act') == 'authcheck':
+            logger.debug('Auth check is needed')
+
             validation_action_url = self.LOGIN_URL + self._get_form_action(validation_page_response)
 
             auth_check_code = self.get_auth_check_code()
@@ -478,6 +481,8 @@ class DirectUserAPI(UserAPI):
 
             # CAPTCHA input required, resend until it's correct
             while url_queries.get('act') == 'authcheck_code':
+                logger.debug('Auth captcha is needed (during 2FA)')
+
                 captcha_action_url = self.LOGIN_URL + self._get_form_action(validation_page_response)
                 captcha_error = self._get_auth_captcha_error(
                     *self._get_auth_captcha_data(validation_page_response)
@@ -494,6 +499,8 @@ class DirectUserAPI(UserAPI):
 
     def auth_captcha_is_needed(self, auth_session, response_params):
         while response_params.get('error') == 'need_captcha':
+            logger.debug('Auth captcha is needed')
+
             captcha_error = self._get_auth_captcha_error(
                 response_params['captcha_sid'],
                 response_params['captcha_img']
@@ -512,7 +519,8 @@ class DirectUserAPI(UserAPI):
 
     def _process_auth_url_queries(self, url_queries):
         if 'fail' in url_queries:
-            raise VkAuthError('Unknown error')
+            logger.error('Unknown OAuth authorization error (during 2FA). URL queries = %s.', url_queries)
+            raise VkAuthError('OAuth authorization failed')
 
         self.user_id = url_queries.get('user_id')
         return url_queries['access_token']
