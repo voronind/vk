@@ -2,7 +2,7 @@ import getpass
 import logging
 import urllib
 from json import loads
-from re import findall
+from re import search
 
 import requests
 
@@ -17,7 +17,7 @@ class APIBase:
     METHOD_COMMON_PARAMS = {'v', 'lang', 'https', 'test_mode'}
 
     API_URL = 'https://api.vk.com/method/'
-    CAPTCHA_URL = 'https://m.vk.com/captcha.php'
+    CAPTCHA_URL = r'https://(m|api).vk.com/captcha.php'
 
     def __new__(cls, *args, **kwargs):
         method_common_params = {
@@ -200,17 +200,24 @@ class UserAPI(API):
 
     @staticmethod
     def _get_form_action(response):
-        form_action = findall(r'<form[^>]* action="([^\"]+)"', response.text)
+        form_action = search(r'<form[^>]* action="([^\"]+)"', response.text)
         if form_action:
-            return form_action[0]
+            return form_action.group(1)
         raise VkAuthError(f'No form on page {response.url}')
 
     @staticmethod
     def _get_input_value(response, name):
-        input_value = findall(rf'<input type="hidden" name="{name}" value="([^\"]+)"', response.text)
+        input_value = search(rf'<input type="hidden" name="{name}" value="([^\"]+)"', response.text)
         if input_value:
-            return input_value[0]
+            return input_value.group(1)
         raise VkAuthError(f'No input with name `{name}` on page {response.url}')
+
+    @staticmethod
+    def _get_captcha_src(response):
+        captcha_src = search(rf'<img[^>]* src="({APIBase.CAPTCHA_URL}[^\"]+)"', response.text)
+        if captcha_src:
+            return captcha_src.group(1)
+        raise VkAuthError(f'No CAPTCHA on page {response.url}')
 
     @staticmethod
     def _get_url_queries(url):
@@ -276,19 +283,14 @@ class UserAPI(API):
         logger.error('Unknown login error. Last URL: %s.', login_response.url)
         raise VkAuthError('Login error (e.g. incorrect password)')
 
-    def auth_captcha_is_needed(self, auth_session, response):
-        # Get login form action
-        login_action = self._get_form_action(response)
+    def _get_auth_captcha_data(self, response):
+        # Return captcha data
+        return (
+            self._get_input_value(response, 'captcha_sid'),  # captcha_sid
+            self._get_captcha_src(response)                  # captcha_img
+        )
 
-        # Get captcha data (img and sid)
-        captcha_img = findall(r'<img id="captcha" src="([^\"]+)"', response.text)
-        if captcha_img:
-            captcha_img = captcha_img[0]
-        else:
-            raise VkAuthError(f'No captcha on page {response.url}')
-
-        captcha_sid = self._get_input_value(response, 'captcha_sid')
-
+    def _get_auth_captcha_error(self, captcha_sid, captcha_img):
         # Create a bogus error
         error_data = {
             'error_code': ErrorCodes.CAPTCHA_NEEDED,
@@ -298,11 +300,19 @@ class UserAPI(API):
         }
         error = VkAPIError(error_data)
 
+        return error
+
+    def auth_captcha_is_needed(self, auth_session, response):
+        # Get login form action
+        login_action = self._get_form_action(response)
+
+        captcha_error = self._get_auth_captcha_error(*self._get_auth_captcha_data(response))
+
         # Login again using user credentials and solved captcha
         login_form_data = {
             **self.get_login_form_data(response),
-            'captcha_sid': captcha_sid,
-            'captcha_key': self.get_captcha_key(error)
+            'captcha_sid': captcha_error.captcha_sid,
+            'captcha_key': self.get_captcha_key(captcha_error)
         }
         login_response = auth_session.post(login_action, login_form_data)
 
@@ -469,29 +479,14 @@ class DirectUserAPI(UserAPI):
             # CAPTCHA input required, resend until it's correct
             while url_queries.get('act') == 'authcheck_code':
                 captcha_action_url = self.LOGIN_URL + self._get_form_action(validation_page_response)
-
-                # Get captcha data (img and sid)
-                captcha_img = findall(r'<img src="([^\"]+)" class="captcha_img"', validation_response.text)
-                if captcha_img:
-                    captcha_img = captcha_img[0]
-                else:
-                    raise VkAuthError(f'No captcha on page {validation_response.url}')
-
-                captcha_sid = self._get_input_value(validation_response, 'captcha_sid')
-
-                # Create a bogus error
-                error_data = {
-                    'error_code': ErrorCodes.CAPTCHA_NEEDED,
-                    'error_msg': 'Captcha error occured during authorization',
-                    'captcha_sid': captcha_sid,
-                    'captcha_img': captcha_img
-                }
-                error = VkAPIError(error_data)
+                captcha_error = self._get_auth_captcha_error(
+                    *self._get_auth_captcha_data(validation_page_response)
+                )
 
                 captcha_check_response = auth_session.post(captcha_action_url, {
                     'code': auth_check_code,
-                    'captcha_sid': captcha_sid,
-                    'captcha_key': self.get_captcha_key(error)
+                    'captcha_sid': captcha_error.captcha_sid,
+                    'captcha_key': self.get_captcha_key(captcha_error)
                 })
                 url_queries = self._get_url_queries(captcha_check_response.url)
 
@@ -499,19 +494,16 @@ class DirectUserAPI(UserAPI):
 
     def auth_captcha_is_needed(self, auth_session, response_params):
         while response_params.get('error') == 'need_captcha':
-            error_data = {
-                'error_code': ErrorCodes.CAPTCHA_NEEDED,
-                'error_msg': 'Captcha error occured during authorization',
-                'captcha_sid': response_params['captcha_sid'],
-                'captcha_img': response_params['captcha_img']
-            }
-            error = VkAPIError(error_data)
+            captcha_error = self._get_auth_captcha_error(
+                response_params['captcha_sid'],
+                response_params['captcha_img']
+            )
 
             response_params = auth_session.post(
                 self.AUTHORIZE_URL,
                 params={
-                    'captcha_sid': error.captcha_sid,
-                    'captcha_img': self.get_captcha_key(error),
+                    'captcha_sid': captcha_error.captcha_sid,
+                    'captcha_img': self.get_captcha_key(captcha_error),
                     **self._get_auth_params()
                 }
             ).json()
