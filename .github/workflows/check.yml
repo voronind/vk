@@ -39,7 +39,6 @@ jobs:
       - name: Run test suite
         run: tox --skip-pkg-install
         env:
-          CI_RUN: 1
           VK_ACCESS_TOKEN: ${{ secrets.VK_ACCESS_TOKEN }}
           VK_USER_LOGIN: ${{ secrets.VK_USER_LOGIN }}
           VK_USER_PASSWORD: ${{ secrets.VK_USER_PASSWORD }}

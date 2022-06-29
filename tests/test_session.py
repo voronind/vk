@@ -1,6 +1,6 @@
 import logging
 from io import StringIO
-from os import getenv, urandom
+from os import urandom
 
 import pytest
 
@@ -16,10 +16,7 @@ def api(access_token, v, lang):
 
 @pytest.fixture
 def user_api(user_login, user_password, v, lang):
-    if not getenv('CI_RUN'):
-        return UserAPI(user_login, user_password, v=v, lang=lang)
-
-    pytest.skip('CI run')  # pragma: no cover
+    return UserAPI(user_login, user_password, v=v, lang=lang)
 
 
 @pytest.fixture
@@ -29,17 +26,14 @@ def direct_user_api(user_login, user_password, v, lang):
 
 @pytest.fixture
 def community_api(user_login, user_password, group_ids, v, lang):
-    if not getenv('CI_RUN'):
-        return CommunityAPI(
-            user_login,
-            user_password,
-            scope='messages',
-            group_ids=list(map(int, group_ids.split(','))),
-            v=v,
-            lang=lang
-        )
-
-    pytest.skip('CI run')  # pragma: no cover
+    return CommunityAPI(
+        user_login,
+        user_password,
+        scope='messages',
+        group_ids=list(map(int, group_ids.split(','))),
+        v=v,
+        lang=lang
+    )
 
 
 def test_api_durov(api):
@@ -77,7 +71,7 @@ def test_direct_user_api_durov(direct_user_api):
     assert users[0]['last_name'] == 'Durov'
 
 
-def test_direct_user_api_errors():
+def test_direct_user_api_auth_errors():
     class EnDirectUserAPI(DirectUserAPI):
         def _get_auth_params(self):
             return {**super()._get_auth_params(), 'lang': 'en'}
