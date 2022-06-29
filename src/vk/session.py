@@ -17,7 +17,6 @@ class APIBase:
     METHOD_COMMON_PARAMS = {'v', 'lang', 'https', 'test_mode'}
 
     API_URL = 'https://api.vk.com/method/'
-    CAPTCHA_URL = r'https://(m|api).vk.com/captcha.php'
 
     def __new__(cls, *args, **kwargs):
         method_common_params = {
@@ -214,7 +213,7 @@ class UserAPI(API):
 
     @staticmethod
     def _get_captcha_src(response):
-        captcha_src = search(rf'<img[^>]* src="({APIBase.CAPTCHA_URL}[^\"]+)"', response.text)
+        captcha_src = search(r'<img[^>]* src="(https://(m|api).vk.com/captcha.php[^\"]+)"', response.text)
         if captcha_src:
             return captcha_src.group(1)
         raise VkAuthError(f'No CAPTCHA on page {response.url}')
