@@ -2,7 +2,7 @@ import getpass
 import logging
 import urllib
 from json import loads
-from re import findall
+from re import search
 
 import requests
 
@@ -17,7 +17,6 @@ class APIBase:
     METHOD_COMMON_PARAMS = {'v', 'lang', 'https', 'test_mode'}
 
     API_URL = 'https://api.vk.com/method/'
-    CAPTCHA_URL = 'https://m.vk.com/captcha.php'
 
     def __new__(cls, *args, **kwargs):
         method_common_params = {
@@ -140,7 +139,7 @@ class API(APIBase):
         """Captcha error handler. Retrieves captcha via :meth:`API.get_captcha_key` and
         resends request
         """
-        request.method_params['captcha_key'] = self.get_captcha_key(request)
+        request.method_params['captcha_key'] = self.get_captcha_key(request.api_error)
         request.method_params['captcha_sid'] = request.api_error.captcha_sid
 
         return self.send(request)
@@ -153,6 +152,13 @@ class UserAPI(API):
     """Subclass of :class:`vk.session.API`. It differs only in that it can get access token
     using user credentials (`Implicit flow authorization
     <https://dev.vk.com/api/access-token/implicit-flow-user>`__).
+
+    Warning:
+        This implementation uses the web version of VK to log in and receive cookies, and then
+        obtains an access token through Implicit flow authorization. In the future, VK may change
+        the approach to authorization (for example, replace it with `VK ID <https://id.vk.com>`__)
+        and maintaining operability will become quite a difficult task, and most likely it will
+        be **deprecated**. Use :class:`vk.session.DirectUserAPI` instead
 
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
@@ -193,17 +199,24 @@ class UserAPI(API):
 
     @staticmethod
     def _get_form_action(response):
-        form_action = findall(r'<form(?= ).* action="(.+)"', response.text)
+        form_action = search(r'<form[^>]* action="([^\"]+)"', response.text)
         if form_action:
-            return form_action[0]
+            return form_action.group(1)
         raise VkAuthError(f'No form on page {response.url}')
 
     @staticmethod
     def _get_input_value(response, name):
-        input_value = findall(rf'<input.* type="hidden".* name="{name}".* value="(.+)"', response.text)
+        input_value = search(rf'<input type="hidden" name="{name}" value="([^\"]+)"', response.text)
         if input_value:
-            return input_value[0]
+            return input_value.group(1)
         raise VkAuthError(f'No input with name `{name}` on page {response.url}')
+
+    @staticmethod
+    def _get_captcha_src(response):
+        captcha_src = search(r'<img[^>]* src="(https://(m|api).vk.com/captcha.php[^\"]+)"', response.text)
+        if captcha_src:
+            return captcha_src.group(1)
+        raise VkAuthError(f'No CAPTCHA on page {response.url}')
 
     @staticmethod
     def _get_url_queries(url):
@@ -259,7 +272,7 @@ class UserAPI(API):
             return self.auth_captcha_is_needed(auth_session, login_response)
 
         if url_queries.get('act') == 'authcheck':
-            logger.debug('Auth check code is needed')
+            logger.debug('Auth check is needed')
             return self.auth_check_is_needed(auth_session, login_response)
 
         if 'security_check' in url_queries:
@@ -269,19 +282,14 @@ class UserAPI(API):
         logger.error('Unknown login error. Last URL: %s.', login_response.url)
         raise VkAuthError('Login error (e.g. incorrect password)')
 
-    def auth_captcha_is_needed(self, auth_session, response):
-        # Get login form action
-        login_action = self._get_form_action(response)
+    def _get_auth_captcha_data(self, response):
+        # Return captcha data
+        return (
+            self._get_input_value(response, 'captcha_sid'),  # captcha_sid
+            self._get_captcha_src(response)                  # captcha_img
+        )
 
-        # Get captcha data (img and sid)
-        captcha_img = findall(r'<img.* id="captcha".* src="([^\"]+)"', response.text)
-        if captcha_img:
-            captcha_img = captcha_img[0]
-        else:
-            raise VkAuthError(f'No captcha on page {response.url}')
-
-        captcha_sid = self._get_input_value(response, 'captcha_sid')
-
+    def _get_auth_captcha_error(self, captcha_sid, captcha_img):
         # Create a bogus error
         error_data = {
             'error_code': ErrorCodes.CAPTCHA_NEEDED,
@@ -291,11 +299,19 @@ class UserAPI(API):
         }
         error = VkAPIError(error_data)
 
+        return error
+
+    def auth_captcha_is_needed(self, auth_session, response):
+        # Get login form action
+        login_action = self._get_form_action(response)
+
+        captcha_error = self._get_auth_captcha_error(*self._get_auth_captcha_data(response))
+
         # Login again using user credentials and solved captcha
         login_form_data = {
             **self.get_login_form_data(response),
-            'captcha_sid': captcha_sid,
-            'captcha_key': self.get_captcha_key(error)
+            'captcha_sid': captcha_error.captcha_sid,
+            'captcha_key': self.get_captcha_key(captcha_error)
         }
         login_response = auth_session.post(login_action, login_form_data)
 
@@ -363,12 +379,168 @@ class UserAPI(API):
         return url_queries['access_token']
 
 
+class DirectUserAPI(UserAPI):
+    """Subclass of :class:`vk.session.UserAPI`. Can get access token using user
+    credentials (through `Direct authorization <https://dev.vk.com/api/direct-auth>`__).
+
+    See also:
+        `Necessary data <https://gist.github.com/YariKartoshe4ka/02a0f2f49efdac06c423eca5661cfc36>`__
+        (**client_id** and **client_secret**) from other official applications
+
+    Args:
+        user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
+        user_password (Optional[str]): User password, optional when using :class:`InteractiveMixin`
+        client_id (Optional[int]): ID of the official application, defaults to *"VK for Android"* app ID
+        client_secret (Optional[str]): Client secret of the official application, defaults to client
+            secret of *"VK for Android"* app
+        scope (Optional[Union[str, int]]): Access rights you need. Can be passed
+            comma-separated list of scopes, or bitmask sum all of them (see `official
+            documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
+            to 'offline'
+        **kwargs (any): Additional parameters, which will be passed to each request.
+            The most useful is `v` - API version and `lang` - language of responses
+            (see :ref:`documentation <Making API request>`)
+
+    Example:
+        .. code-block:: python
+
+            >>> import vk
+            >>> api = vk.DirectUserAPI(
+            ...     user_login='...',
+            ...     user_password='...',
+            ...     scope='offline,wall',
+            ...     v='5.131'
+            ... )
+            >>> print(api.users.get(user_ids=1))
+            [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
+    """
+    LOGIN_URL = 'https://m.vk.com'
+    AUTHORIZE_URL = 'https://oauth.vk.com/token'
+
+    def __init__(
+        self,
+        user_login=None,
+        user_password=None,
+        client_id=2274003,
+        client_secret='hHbZxrka2uZ6jB1inYsH',
+        scope='offline',
+        **kwargs
+    ):
+        self.user_login = user_login
+        self.user_password = user_password
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.scope = scope
+
+        API.__init__(self, self.get_access_token(), **kwargs)
+
+    def login(self, auth_session):  # noqa: U100
+        return True
+
+    def _get_auth_params(self):
+        return {
+            'grant_type': 'password',
+            'client_id': self.client_id,
+            'client_secret': self.client_secret,
+            'username': self.user_login,
+            'password': self.user_password,
+            'scope': self.scope,
+            '2fa_supported': 1
+        }
+
+    def authorize(self, auth_session):
+        logger.debug('Start of the OAuth authorization process')
+        auth_response = auth_session.post(self.AUTHORIZE_URL, self._get_auth_params())
+        response_params = auth_response.json()
+
+        if 'error' in response_params:
+            if response_params['error'] == 'need_validation':
+                return self.auth_check_is_needed(auth_session, response_params)
+
+            if response_params['error'] == 'need_captcha':
+                return self.auth_captcha_is_needed(auth_session, response_params)
+
+        self._oauth_is_request_success(auth_response)
+        logger.debug('Successfully authorized')
+        return response_params['access_token']
+
+    def auth_check_is_needed(self, auth_session, response_params):
+        validation_page_response = auth_session.get(response_params['redirect_uri'])
+        url_queries = self._get_url_queries(validation_page_response.url)
+
+        # Resend auth check code until it's correct
+        while url_queries.get('act') == 'authcheck':
+            logger.debug('Auth check is needed')
+
+            validation_action_url = self.LOGIN_URL + self._get_form_action(validation_page_response)
+
+            auth_check_code = self.get_auth_check_code()
+            validation_response = auth_session.post(validation_action_url, {'code': auth_check_code})
+            url_queries = self._get_url_queries(validation_response.url)
+
+            # CAPTCHA input required, resend until it's correct
+            while url_queries.get('act') == 'authcheck_code':
+                logger.debug('Auth captcha is needed (during 2FA)')
+
+                captcha_action_url = self.LOGIN_URL + self._get_form_action(validation_page_response)
+                captcha_error = self._get_auth_captcha_error(
+                    *self._get_auth_captcha_data(validation_page_response)
+                )
+
+                captcha_check_response = auth_session.post(captcha_action_url, {
+                    'code': auth_check_code,
+                    'captcha_sid': captcha_error.captcha_sid,
+                    'captcha_key': self.get_captcha_key(captcha_error)
+                })
+                url_queries = self._get_url_queries(captcha_check_response.url)
+
+        return self._process_auth_url_queries(url_queries)
+
+    def auth_captcha_is_needed(self, auth_session, response_params):
+        while response_params.get('error') == 'need_captcha':
+            logger.debug('Auth captcha is needed')
+
+            captcha_error = self._get_auth_captcha_error(
+                response_params['captcha_sid'],
+                response_params['captcha_img']
+            )
+
+            response_params = auth_session.post(
+                self.AUTHORIZE_URL,
+                params={
+                    'captcha_sid': captcha_error.captcha_sid,
+                    'captcha_img': self.get_captcha_key(captcha_error),
+                    **self._get_auth_params()
+                }
+            ).json()
+
+        return response_params['access_token']
+
+    def _process_auth_url_queries(self, url_queries):
+        if 'fail' in url_queries:
+            logger.error('Unknown OAuth authorization error (during 2FA). URL queries = %s.', url_queries)
+            raise VkAuthError('OAuth authorization failed')
+
+        self.user_id = url_queries.get('user_id')
+        return url_queries['access_token']
+
+
 class CommunityAPI(UserAPI):
     """Subclass of :class:`vk.session.UserAPI`. Can get community access token using user
     credentials (`Implicit flow authorization for communities
     <https://dev.vk.com/api/access-token/implicit-flow-community>`__). To select a community
     on behalf of which to make request to the API method, you can pass the **group_id** param
     (defaults to the first community from the passed list)
+
+    Warning:
+        This implementation uses the web version of VK to log in and receive cookies, and then
+        obtains an access tokens through Implicit flow authorization for communities. In the
+        future, VK may change the approach to authorization (for example, replace it with `VK ID
+        <https://id.vk.com>`__) and maintaining operability will become quite a difficult task,
+        and most likely it will be **deprecated**.
+
+        You can create a group token on the management page: Community -> Management -> Working with
+        API -> Access Tokens -> Create a token (bonus - the token has no expiration date)
 
     Args:
         user_login (Optional[str]): User login, optional when using :class:`InteractiveMixin`
