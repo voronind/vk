@@ -9,22 +9,30 @@ from vk.exceptions import VkAuthError
 from vk.session import InteractiveMixin
 
 
-@pytest.fixture
+@pytest.fixture(scope='module', autouse=True)
+def captcha_xfail():
+    mp = pytest.MonkeyPatch()
+    mp.setattr(API, 'get_captcha_key', lambda self, api_error: pytest.xfail(str(api_error)))
+    yield
+    mp.undo()
+
+
+@pytest.fixture(scope='module')
 def api(access_token, v, lang):
     return API(access_token, v=v, lang=lang)
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def user_api(user_login, user_password, v, lang):
     return UserAPI(user_login, user_password, v=v, lang=lang)
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def direct_user_api(user_login, user_password, v, lang):
     return DirectUserAPI(user_login, user_password, v=v, lang=lang)
 
 
-@pytest.fixture
+@pytest.fixture(scope='module')
 def community_api(user_login, user_password, group_ids, v, lang):
     return CommunityAPI(
         user_login,
