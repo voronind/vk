@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: "3.10"
       - name: Install tox
-        run: pip install tox<5
+        run: pip install tox
       - name: Setup Python ${{ matrix.py }} for test
         uses: actions/setup-python@v2
         with:
