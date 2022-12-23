@@ -13,7 +13,7 @@ maintainers = [
     { name = "Yaroslav Kikel", email = "yaroslav.kikel.06@inbox.ru"}
 ]
 dependencies = [
-    "requests~=2.24"
+    "requests<3"
 ]
 urls.Documentation = "https://vk.readthedocs.io"
 urls.Homepage = "https://github.com/voronind/vk"
