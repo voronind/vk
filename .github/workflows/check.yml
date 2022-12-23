@@ -47,6 +47,7 @@ jobs:
           print('Picked:\n{}for {}'.format(env, sys.version))
           with codecs.open(os.environ['GITHUB_ENV'], 'a', 'utf-8') as file:
             file.write(env)
+        shell: python
       - name: Setup test suite
         run: tox -vv --notest
       - name: Run test suite
