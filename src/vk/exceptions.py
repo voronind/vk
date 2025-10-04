@@ -3,7 +3,7 @@ from enum import IntEnum
 
 class ErrorCodes(IntEnum):
     """Enumeration object of VK API error codes. See `official documentation
-    <https://dev.vk.com/reference/errors>`__ for more details
+    <https://dev.vk.ru/reference/errors>`__ for more details
     """
 
     AUTHORIZATION_FAILED = 5    #: Invalid access token

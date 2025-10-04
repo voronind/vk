@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vk"
-description = "Python vk.com API wrapper"
+description = "Python vk.ru API wrapper"
 license = { text = "MIT" }
 authors = [
     { name = "Dmitry Voronin", email = "dimka665@gmail.com" }
@@ -20,7 +20,7 @@ urls.Homepage = "https://github.com/voronind/vk"
 urls.Source = "https://github.com/voronind/vk"
 urls.Tracker = "https://github.com/voronind/vk/issues"
 readme = "README.md"
-keywords = ["vk.com", "api", "vk", "wrappper"]
+keywords = ["vk.ru", "api", "vk", "wrappper"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",

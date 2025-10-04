@@ -1,7 +1,7 @@
 Welcome to vk's documentation!
 ==============================
 
-**VK** library is a `vk.com <vk.com>`__ (the largest Russian social network) python API wrapper
+**VK** library is a `vk.ru <vk.ru>`__ (the largest Russian social network) python API wrapper
 
 Contents:
 

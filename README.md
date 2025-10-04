@@ -1,4 +1,4 @@
-# vk | python vk.com API wrapper
+# vk | python vk.ru API wrapper
 
 [![Maintanance](https://img.shields.io/maintenance/yes/2023?style=flat-square)](https://github.com/voronind/vk/commits/master)
 [![PyPI](https://img.shields.io/pypi/pyversions/vk?style=flat-square)](https://pypi.org/project/vk/)
@@ -6,7 +6,7 @@
 [![Codecov](https://img.shields.io/codecov/c/github/voronind/vk?style=flat-square)](https://codecov.io/gh/voronind/vk)
 [![Docs](https://img.shields.io/readthedocs/vk?style=flat-square)](https://vk.readthedocs.io/en/latest/)
 
-This is a vk.com (the largest Russian social network) python API wrapper. <br>
+This is a vk.ru (the largest Russian social network) python API wrapper. <br>
 The goal is to support all API methods (current and future) that can be accessed from server.
 
 
@@ -29,7 +29,7 @@ pip install vk
 [{'id': 1, 'first_name': 'Pavel', 'last_name': 'Durov', ... }]
 ```
 
-See official VK [documentation](https://dev.vk.com/method) for detailed API guide.
+See official VK [documentation](https://dev.vk.ru/method) for detailed API guide.
 
 
 ## More info
