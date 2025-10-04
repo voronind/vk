@@ -17,7 +17,7 @@ Several types of APIs are implemented in this module. Each of them is needed for
 It gets user info with **user id** equal to **1**. :class:`vk.api.APINamespace` object is used to create API request and send it via original :class:`vk.session.API` class object (or another), which in turn, manages access token, sends API request, gets JSON response, parses and returns it.
 
 | More formally, this forms the following POST request to the VK API:
-| https://api.vk.com/method/users.get?user_ids=1&access_token=...&v=5.131
+| https://api.vk.ru/method/users.get?user_ids=1&access_token=...&v=5.131
 
 
 vk.API

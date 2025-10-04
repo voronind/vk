@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class APIBase:
     METHOD_COMMON_PARAMS = {'v', 'lang', 'https', 'test_mode'}
 
-    API_URL = 'https://api.vk.com/method/'
+    API_URL = 'https://api.vk.ru/method/'
 
     def __new__(cls, *args, **kwargs):
         method_common_params = {
@@ -100,7 +100,7 @@ class APIBase:
 
 
 class API(APIBase):
-    """The simplest VK API implementation. Can process `any API method <https://dev.vk.com/method>`__
+    """The simplest VK API implementation. Can process `any API method <https://dev.vk.ru/method>`__
     that can be called from the server
 
     Args:
@@ -151,12 +151,12 @@ class API(APIBase):
 class UserAPI(API):
     """Subclass of :class:`vk.session.API`. It differs only in that it can get access token
     using user credentials (`Implicit flow authorization
-    <https://dev.vk.com/api/access-token/implicit-flow-user>`__).
+    <https://dev.vk.ru/api/access-token/implicit-flow-user>`__).
 
     Warning:
         This implementation uses the web version of VK to log in and receive cookies, and then
         obtains an access token through Implicit flow authorization. In the future, VK may change
-        the approach to authorization (for example, replace it with `VK ID <https://id.vk.com>`__)
+        the approach to authorization (for example, replace it with `VK ID <https://id.vk.ru>`__)
         and maintaining operability will become quite a difficult task, and most likely it will
         be **deprecated**. Use :class:`vk.session.DirectUserAPI` instead
 
@@ -167,7 +167,7 @@ class UserAPI(API):
             "VK Admin" app ID
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
-            documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
+            documentation <https://dev.vk.ru/reference/access-rights>`__). Defaults
             to 'offline'
         **kwargs (any): Additional parameters, which will be passed to each request.
             The most useful is `v` - API version and `lang` - language of responses
@@ -186,8 +186,8 @@ class UserAPI(API):
             >>> print(api.users.get(user_ids=1))
             [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
     """
-    LOGIN_URL = 'https://oauth.vk.com'
-    AUTHORIZE_URL = 'https://oauth.vk.com/authorize'
+    LOGIN_URL = 'https://oauth.vk.ru'
+    AUTHORIZE_URL = 'https://oauth.vk.ru/authorize'
 
     def __init__(self, user_login=None, user_password=None, client_id=6121396, scope='offline', **kwargs):
         self.user_login = user_login
@@ -213,7 +213,7 @@ class UserAPI(API):
 
     @staticmethod
     def _get_captcha_src(response):
-        captcha_src = search(r'<img[^>]* src="(https://(m|api).vk.com/captcha.php[^\"]+)"', response.text)
+        captcha_src = search(r'<img[^>]* src="(https://(m|api).vk.ru/captcha.php[^\"]+)"', response.text)
         if captcha_src:
             return captcha_src.group(1)
         raise VkAuthError(f'No CAPTCHA on page {response.url}')
@@ -235,7 +235,7 @@ class UserAPI(API):
 
     def get_access_token(self):
         auth_session = requests.Session()
-        auth_session.headers['Origin'] = 'https://oauth.vk.com'
+        auth_session.headers['Origin'] = 'https://oauth.vk.ru'
 
         if self.login(auth_session):
             return self.authorize(auth_session)
@@ -381,7 +381,7 @@ class UserAPI(API):
 
 class DirectUserAPI(UserAPI):
     """Subclass of :class:`vk.session.UserAPI`. Can get access token using user
-    credentials (through `Direct authorization <https://dev.vk.com/api/direct-auth>`__).
+    credentials (through `Direct authorization <https://dev.vk.ru/api/direct-auth>`__).
 
     See also:
         `Necessary data <https://gist.github.com/YariKartoshe4ka/02a0f2f49efdac06c423eca5661cfc36>`__
@@ -395,7 +395,7 @@ class DirectUserAPI(UserAPI):
             secret of *"VK for Android"* app
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
-            documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
+            documentation <https://dev.vk.ru/reference/access-rights>`__). Defaults
             to 'offline'
         **kwargs (any): Additional parameters, which will be passed to each request.
             The most useful is `v` - API version and `lang` - language of responses
@@ -414,8 +414,8 @@ class DirectUserAPI(UserAPI):
             >>> print(api.users.get(user_ids=1))
             [{'id': 1, 'first_name': 'Павел', 'last_name': 'Дуров', ... }]
     """
-    LOGIN_URL = 'https://m.vk.com'
-    AUTHORIZE_URL = 'https://oauth.vk.com/token'
+    LOGIN_URL = 'https://m.vk.ru'
+    AUTHORIZE_URL = 'https://oauth.vk.ru/token'
 
     def __init__(
         self,
@@ -528,7 +528,7 @@ class DirectUserAPI(UserAPI):
 class CommunityAPI(UserAPI):
     """Subclass of :class:`vk.session.UserAPI`. Can get community access token using user
     credentials (`Implicit flow authorization for communities
-    <https://dev.vk.com/api/access-token/implicit-flow-community>`__). To select a community
+    <https://dev.vk.ru/api/access-token/implicit-flow-community>`__). To select a community
     on behalf of which to make request to the API method, you can pass the **group_id** param
     (defaults to the first community from the passed list)
 
@@ -536,7 +536,7 @@ class CommunityAPI(UserAPI):
         This implementation uses the web version of VK to log in and receive cookies, and then
         obtains an access tokens through Implicit flow authorization for communities. In the
         future, VK may change the approach to authorization (for example, replace it with `VK ID
-        <https://id.vk.com>`__) and maintaining operability will become quite a difficult task,
+        <https://id.vk.ru>`__) and maintaining operability will become quite a difficult task,
         and most likely it will be **deprecated**.
 
         You can create a group token on the management page: Community -> Management -> Working with
@@ -550,7 +550,7 @@ class CommunityAPI(UserAPI):
             "VK Admin" app ID
         scope (Optional[Union[str, int]]): Access rights you need. Can be passed
             comma-separated list of scopes, or bitmask sum all of them (see `official
-            documentation <https://dev.vk.com/reference/access-rights>`__). Defaults
+            documentation <https://dev.vk.ru/reference/access-rights>`__). Defaults
             to ``None``. **Be careful**, only *manage*, *messages*, *photos*, *docs*,
             *wall* and *stories* are available for communities
         **kwargs (any): Additional parameters, which will be passed to each request.
