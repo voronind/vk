@@ -4,7 +4,7 @@ vk.com API
 
 .. _`Getting access`:
 
-Getting access
+Getting access (`depricated <https://github.com/vkhost/vkhost.github.io/issues/4>`__)
 --------------
 
 To use `vk.com <vk.com>`__ API you need an access token. There are several types of tokens, and the `official documentation <https://dev.vk.com/api/access-token/getting-started>`__ describes the process of obtaining each of them well. Based on our experience, we can offer you the fastest way to get a token - from the official application
